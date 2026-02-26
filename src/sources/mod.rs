@@ -18,9 +18,8 @@ pub struct SourceRegistry {
 
 impl SourceRegistry {
     pub fn new(client: reqwest::Client, coingecko_api_key: Option<String>) -> Self {
-        let mut sources: Vec<Box<dyn PriceSource>> = vec![
-            Box::new(geckoterminal::GeckoTerminal::new(client.clone())),
-        ];
+        let mut sources: Vec<Box<dyn PriceSource>> =
+            vec![Box::new(geckoterminal::GeckoTerminal::new(client.clone()))];
 
         if let Some(key) = coingecko_api_key {
             sources.push(Box::new(coingecko::CoinGecko::new(client, key)));

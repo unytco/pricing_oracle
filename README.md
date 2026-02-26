@@ -30,6 +30,9 @@ Defines the units the oracle tracks (each with a `unit_index`, `name`, `chain`, 
 
 - **units** — Entries that appear in the ConversionTable. Each has a unique `unit_index`. Units without `price_proxy` are fetched from price sources; units with `price_proxy` inherit price from another unit or from a price reference.
 - **price_references** (optional) — Tokens used only as price sources. They have an `id`, `name`, `chain`, and `contract` (no `unit_index`). They are fetched and aggregated like real units, but never get a row in the ConversionTable. Use them when a unit should proxy from a token that is not part of the network’s unit list.
+- **forex** (optional) — Fiat currencies to include in `ConversionTable.forex_rates`. Rates are stored as **foreign units per 1 USD** (for example, `EUR=0.93` means `1 USD = 0.93 EUR`).
+  - `max_symbols_per_run` — symbols per batch (default `8`). The oracle fetches **all** symbols in a loop, one batch at a time.
+  - `delay_between_batches_secs` — seconds to wait between batches (default `0`). Set to e.g. `65` for Twelve Data free-tier per-minute limit so each batch gets a fresh credit window.
 
 **price_proxy** must have exactly one of:
 
@@ -44,6 +47,17 @@ price_references:
     chain: "ethereum"
     contract: "0x6c6ee5e31d828de241282b9606c8e98ea48526e2"
 
+forex:
+  max_symbols_per_run: 8
+  delay_between_batches_secs: 65   # optional; 65s for Twelve Data free tier
+  use_twelve_data: true
+  use_coinapi: false
+  symbols:
+    - "USD"
+    - "EUR"
+    - "GBP"
+    - "JPY"
+
 units:
   - unit_index: 0
     name: "HOTMOCK"
@@ -55,11 +69,15 @@ units:
 
 You can still proxy from another unit in the list: use `price_proxy: { use_unit: 0 }` instead of `use_reference`.
 
+If `forex.symbols` is empty or omitted, no forex API calls are made.
+
 ### Environment variables (.env)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `COINGECKO_API_KEY` | No | — | Free demo key from coingecko.com. If unset, only GeckoTerminal is used. |
+| `TWELVE_DATA_API_KEY` | No | — | Twelve Data key for forex rates (`USD/<SYMBOL>`) |
+| `COINAPI_API_KEY` | No | — | CoinAPI key for forex rates (`USD/<SYMBOL>`) |
 | `HOLOCHAIN_ADMIN_PORT` | For `--submit` | `30000` | Holochain conductor admin port |
 | `HOLOCHAIN_APP_PORT` | For `--submit` | `30001` | Holochain conductor app port |
 | `HOLOCHAIN_APP_ID` | For `--submit` | `bridging-app` | Installed app ID |
@@ -72,12 +90,23 @@ The `GlobalDefinition` is fetched automatically from the conductor via `get_curr
 
 Sources are compiled into the binary. Adding a new source means adding a new module that implements the `PriceSource` trait.
 
+### Token price sources
+
 | Source | API key required | Data provided |
 |---|---|---|
 | **GeckoTerminal** | No | price, volume, market cap, liquidity |
 | **CoinGecko** | Yes (free demo key) | price, volume, market cap, 24h change |
 
 Both sources are queried for each real unit. If only one source is available (e.g. no CoinGecko key), the single-source result is accepted without cross-checking.
+
+### Forex sources
+
+| Source | API key required | Data provided |
+|---|---|---|
+| **Twelve Data** | Yes | forex rate for `USD/<SYMBOL>` |
+| **CoinAPI** | Yes | forex rate for `USD/<SYMBOL>` |
+
+For each configured forex symbol, providers are queried when available. If both return valid rates, the oracle stores their average. If one source fails or quota is exhausted, partial results from the other source are still used.
 
 ## Aggregation and validation
 
@@ -99,6 +128,11 @@ ConversionTable
 │       ├── net_change: String (24h % change)
 │       ├── sources: Vec<String>
 │       └── contract: Option<String>
+├── forex_rates: Vec<ForexRate>
+│   └── ForexRate
+│       ├── symbol: String
+│       ├── name: String
+│       └── rate: ZFuel (foreign units per 1 USD)
 ├── additional_data: None
 └── global_definition: ActionHash
 ```
@@ -129,10 +163,15 @@ pricing_oracle/
     ├── main.rs              # CLI entry point, argument parsing, orchestration
     ├── config.rs            # YAML config loading and validation
     ├── types.rs             # TokenData, AggregatedResult, ConversionTable mirrors
+    ├── forex_aggregate.rs   # Forex symbol merge/fallback + validation
     ├── sources/
     │   ├── mod.rs           # PriceSource trait and SourceRegistry
     │   ├── geckoterminal.rs # GeckoTerminal API implementation
     │   └── coingecko.rs     # CoinGecko API implementation
+    ├── forex/
+    │   ├── mod.rs           # ForexSource trait and ForexSourceRegistry
+    │   ├── twelve_data.rs   # Twelve Data USD/<SYMBOL> implementation
+    │   └── coinapi.rs       # CoinAPI USD/<SYMBOL> implementation
     ├── aggregate.rs         # Average calculation and 1% deviation check
     ├── output.rs            # ConversionTable builder and print formatters
     ├── ham.rs               # Holochain Agent Manager (admin/app websocket)

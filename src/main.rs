@@ -1,5 +1,7 @@
 mod aggregate;
 mod config;
+mod forex;
+mod forex_aggregate;
 mod ham;
 mod output;
 mod sources;
@@ -61,6 +63,8 @@ async fn main() -> Result<()> {
     );
 
     let coingecko_key = std::env::var("COINGECKO_API_KEY").ok();
+    let twelve_data_key = std::env::var("TWELVE_DATA_API_KEY").ok();
+    let coinapi_key = std::env::var("COINAPI_API_KEY").ok();
     let client = reqwest::Client::builder()
         .user_agent("pricing-oracle/0.1")
         .build()
@@ -105,17 +109,17 @@ async fn main() -> Result<()> {
     let mut aggregated: Vec<types::AggregatedResult> = Vec::new();
 
     for unit in &real_units {
-        info!("Fetching prices for unit {} ({})", unit.unit_index, unit.name);
+        info!(
+            "Fetching prices for unit {} ({})",
+            unit.unit_index, unit.name
+        );
         let fetch_results = registry.fetch_all(unit).await;
 
         let mut successful: Vec<types::TokenData> = Vec::new();
         for (source_name, result) in fetch_results {
             match result {
                 Ok(data) => {
-                    info!(
-                        "  [{}] price={:.8} USD",
-                        source_name, data.price_usd
-                    );
+                    info!("  [{}] price={:.8} USD", source_name, data.price_usd);
                     successful.push(data);
                 }
                 Err(e) => {
@@ -158,10 +162,7 @@ async fn main() -> Result<()> {
             };
             info!(
                 "Proxying unit {} ({}) from {} — price={:.8}",
-                proxy_unit.unit_index,
-                proxy_unit.name,
-                from,
-                source_agg.avg_price_usd
+                proxy_unit.unit_index, proxy_unit.name, from, source_agg.avg_price_usd
             );
             let mut proxied = source_agg;
             proxied.unit_index = proxy_unit.unit_index;
@@ -186,22 +187,70 @@ async fn main() -> Result<()> {
 
     aggregated.sort_by_key(|a| a.unit_index);
 
+    let batch_size = cfg.forex.max_symbols_per_run;
+    let delay_secs = cfg.forex.delay_between_batches_secs;
+    let forex_registry = forex::ForexSourceRegistry::new(
+        reqwest::Client::builder()
+            .user_agent("pricing-oracle/0.1")
+            .build()
+            .context("building forex HTTP client")?,
+        twelve_data_key,
+        coinapi_key,
+        cfg.forex.use_twelve_data,
+        cfg.forex.use_coinapi,
+    );
+    info!(
+        "Registered {} forex source(s); fetching in batches of {} ({} total symbols)",
+        forex_registry.source_count(),
+        batch_size,
+        cfg.forex.symbols.len()
+    );
+
+    let mut aggregated_forex: Vec<forex_aggregate::AggregatedForexRate> = Vec::new();
+    let chunks: Vec<Vec<String>> = cfg
+        .forex
+        .symbols
+        .chunks(batch_size)
+        .map(|c| c.to_vec())
+        .collect();
+    let total_batches = chunks.len();
+
+    for (i, chunk) in chunks.into_iter().enumerate() {
+        if i > 0 && delay_secs > 0 {
+            info!(
+                "Waiting {}s before next forex batch (rate limit)",
+                delay_secs
+            );
+            tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+        }
+        info!(
+            "Forex batch {}/{}: {}",
+            i + 1,
+            total_batches,
+            chunk.join(", ")
+        );
+        let forex_results = forex_registry.fetch_all(&chunk).await;
+        let batch_rates = forex_aggregate::aggregate_forex_rates(&chunk, forex_results);
+        aggregated_forex.extend(batch_rates);
+    }
+
     if args.dry_run {
-        let table = output::build_conversion_table(&aggregated, None)?;
+        let table = output::build_conversion_table(&aggregated, &aggregated_forex, None)?;
         println!("--- Dry-run: ConversionTable that would be submitted ---");
         output::print_json(&table)?;
         return Ok(());
     }
 
     if args.submit {
-        let hc_config = zome::HolochainConfig::from_env()
-            .context("loading Holochain config for --submit")?;
+        let hc_config =
+            zome::HolochainConfig::from_env().context("loading Holochain config for --submit")?;
 
         let global_def = zome::fetch_global_definition(&hc_config)
             .await
             .context("fetching current GlobalDefinition")?;
 
-        let table = output::build_conversion_table(&aggregated, Some(global_def))?;
+        let table =
+            output::build_conversion_table(&aggregated, &aggregated_forex, Some(global_def))?;
         println!("--- ConversionTable to submit ---");
         output::print_json(&table)?;
 
@@ -212,7 +261,7 @@ async fn main() -> Result<()> {
 
     match args.output.as_str() {
         "json" => {
-            let table = output::build_conversion_table(&aggregated, None)?;
+            let table = output::build_conversion_table(&aggregated, &aggregated_forex, None)?;
             output::print_json(&table)?;
         }
         _ => {

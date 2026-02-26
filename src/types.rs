@@ -37,8 +37,16 @@ pub struct AggregatedResult {
 pub struct ConversionTable {
     pub reference_unit: ReferenceUnit,
     pub data: HashMap<String, ConversionData>,
+    pub forex_rates: Vec<ForexRate>,
     pub additional_data: Option<Vec<u8>>,
     pub global_definition: ActionHash,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForexRate {
+    pub symbol: String,
+    pub name: String,
+    pub rate: ZFuel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

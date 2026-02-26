@@ -1,4 +1,5 @@
-use crate::types::{AggregatedResult, ConversionData, ConversionTable, ReferenceUnit};
+use crate::forex_aggregate::AggregatedForexRate;
+use crate::types::{AggregatedResult, ConversionData, ConversionTable, ForexRate, ReferenceUnit};
 use anyhow::{Context, Result};
 use holo_hash::ActionHash;
 use std::collections::HashMap;
@@ -7,6 +8,7 @@ use zfuel::fuel::ZFuel;
 
 pub fn build_conversion_table(
     results: &[AggregatedResult],
+    forex_rates: &[AggregatedForexRate],
     global_definition: Option<ActionHash>,
 ) -> Result<ConversionTable> {
     let reference_unit = ReferenceUnit {
@@ -53,9 +55,22 @@ pub fn build_conversion_table(
     let global_definition =
         global_definition.unwrap_or_else(|| ActionHash::from_raw_36(vec![0u8; 36]));
 
+    let mut output_forex_rates = Vec::new();
+    for rate in forex_rates {
+        let rate_str = format!("{}", rate.foreign_per_usd);
+        let rate_zfuel = ZFuel::from_str(&rate_str)
+            .map_err(|e| anyhow::anyhow!("ZFuel parse error for forex '{}': {:?}", rate_str, e))?;
+        output_forex_rates.push(ForexRate {
+            symbol: rate.symbol.clone(),
+            name: rate.name.clone(),
+            rate: rate_zfuel,
+        });
+    }
+
     Ok(ConversionTable {
         reference_unit,
         data,
+        forex_rates: output_forex_rates,
         additional_data: None,
         global_definition,
     })

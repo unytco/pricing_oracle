@@ -53,10 +53,13 @@ impl PriceSource for GeckoTerminal {
         let body: serde_json::Value = resp.json().await.context("GeckoTerminal parse failed")?;
         let attrs = &body["data"]["attributes"];
 
-        let price_usd = parse_string_f64(attrs, "price_usd")
-            .context("GeckoTerminal: missing price_usd")?;
+        let price_usd =
+            parse_string_f64(attrs, "price_usd").context("GeckoTerminal: missing price_usd")?;
 
-        let volume_24h = attrs["volume_usd"].get("h24").and_then(|v| v.as_str()).and_then(|s| s.parse::<f64>().ok());
+        let volume_24h = attrs["volume_usd"]
+            .get("h24")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<f64>().ok());
         let liquidity = parse_optional_string_f64(attrs, "total_reserve_in_usd");
         let market_cap = parse_optional_string_f64(attrs, "market_cap_usd");
 
@@ -82,12 +85,11 @@ fn parse_string_f64(obj: &serde_json::Value, key: &str) -> Option<f64> {
 }
 
 fn parse_optional_string_f64(obj: &serde_json::Value, key: &str) -> Option<f64> {
-    obj.get(key)
-        .and_then(|v| {
-            if v.is_null() {
-                None
-            } else {
-                v.as_str().and_then(|s| s.parse::<f64>().ok())
-            }
-        })
+    obj.get(key).and_then(|v| {
+        if v.is_null() {
+            None
+        } else {
+            v.as_str().and_then(|s| s.parse::<f64>().ok())
+        }
+    })
 }

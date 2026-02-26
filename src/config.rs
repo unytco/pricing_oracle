@@ -7,7 +7,32 @@ use std::path::Path;
 pub struct Config {
     #[serde(default)]
     pub price_references: Vec<PriceReference>,
+    #[serde(default)]
+    pub forex: ForexConfig,
     pub units: Vec<UnitConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ForexConfig {
+    #[serde(default)]
+    pub symbols: Vec<String>,
+    #[serde(default = "default_true")]
+    pub use_twelve_data: bool,
+    #[serde(default = "default_true")]
+    pub use_coinapi: bool,
+    #[serde(default = "default_max_symbols_per_run")]
+    pub max_symbols_per_run: usize,
+    /// Seconds to wait between batches when iterating (e.g. 65 for Twelve Data free tier per-minute limit).
+    #[serde(default)]
+    pub delay_between_batches_secs: u64,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_max_symbols_per_run() -> usize {
+    8
 }
 
 /// Token fetched for price only; not in ConversionTable, no unit_index.
@@ -61,13 +86,32 @@ impl Config {
     pub fn load(path: &Path) -> Result<Self> {
         let contents =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        let config: Config =
-            serde_yaml::from_str(&contents).with_context(|| format!("parsing {}", path.display()))?;
+        let config: Config = serde_yaml::from_str(&contents)
+            .with_context(|| format!("parsing {}", path.display()))?;
         config.validate()?;
         Ok(config)
     }
 
     fn validate(&self) -> Result<()> {
+        let mut seen_forex: HashMap<&str, ()> = HashMap::new();
+        for symbol in &self.forex.symbols {
+            if symbol.trim().is_empty() {
+                anyhow::bail!("forex.symbols contains an empty symbol");
+            }
+            if symbol.len() != 3 || !symbol.chars().all(|c| c.is_ascii_uppercase()) {
+                anyhow::bail!(
+                    "forex.symbols '{}' must be a 3-letter uppercase currency code",
+                    symbol
+                );
+            }
+            if seen_forex.insert(symbol.as_str(), ()).is_some() {
+                anyhow::bail!("forex.symbols contains duplicate '{}'", symbol);
+            }
+        }
+        if self.forex.max_symbols_per_run == 0 {
+            anyhow::bail!("forex.max_symbols_per_run must be greater than 0");
+        }
+
         let mut ref_ids: HashMap<&str, &str> = HashMap::new();
         for r in &self.price_references {
             if let Some(prev) = ref_ids.insert(r.id.as_str(), r.name.as_str()) {
@@ -108,10 +152,7 @@ impl Config {
                         );
                     }
                     if use_unit == unit.unit_index {
-                        anyhow::bail!(
-                            "unit '{}' has price_proxy pointing to itself",
-                            unit.name
-                        );
+                        anyhow::bail!("unit '{}' has price_proxy pointing to itself", unit.name);
                     }
                 }
                 if let Some(ref id) = proxy.use_reference {
@@ -143,11 +184,7 @@ impl Config {
     }
 
     /// Resolve proxy to either a unit index or a reference id.
-    pub fn resolve_proxy_source(
-        &self,
-        unit_index: u32,
-        proxy: &PriceProxy,
-    ) -> Result<ProxySource> {
+    pub fn resolve_proxy_source(&self, unit_index: u32, proxy: &PriceProxy) -> Result<ProxySource> {
         if let Some(use_unit) = proxy.use_unit {
             if use_unit == unit_index {
                 anyhow::bail!("price_proxy use_unit cannot point to self");

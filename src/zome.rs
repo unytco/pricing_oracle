@@ -23,11 +23,11 @@ impl HolochainConfig {
             .parse()
             .context("Invalid HOLOCHAIN_APP_PORT")?;
 
-        let app_id = std::env::var("HOLOCHAIN_APP_ID")
-            .unwrap_or_else(|_| "bridging-app".to_string());
+        let app_id =
+            std::env::var("HOLOCHAIN_APP_ID").unwrap_or_else(|_| "bridging-app".to_string());
 
-        let role_name = std::env::var("HOLOCHAIN_ROLE_NAME")
-            .unwrap_or_else(|_| "alliance".to_string());
+        let role_name =
+            std::env::var("HOLOCHAIN_ROLE_NAME").unwrap_or_else(|_| "alliance".to_string());
 
         Ok(Self {
             admin_port,
@@ -79,7 +79,12 @@ pub async fn submit_conversion_table(
 
     info!("[submit] Calling transactor/create_conversion_table");
     let action_hash: ActionHash = ham
-        .call_zome(&hc.role_name, "transactor", "create_conversion_table", table)
+        .call_zome(
+            &hc.role_name,
+            "transactor",
+            "create_conversion_table",
+            table,
+        )
         .await
         .context("create_conversion_table zome call failed")?;
 

@@ -27,7 +27,9 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
     let valid = if data.len() < 2 {
         warn!(
             "unit {} ({}): only {} source — skipping cross-check",
-            unit_index, name, data.len()
+            unit_index,
+            name,
+            data.len()
         );
         true
     } else {
