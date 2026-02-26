@@ -1,0 +1,14 @@
+# Tokens fetched for price only; not in ConversionTable, no unit_index
+price_references:
+  - id: "HOT"
+    name: "HOT"
+    chain: "ethereum"
+    contract: "0x6c6ee5e31d828de241282b9606c8e98ea48526e2"
+
+units:
+  - unit_index: 0
+    name: "HOTMOCK"
+    chain: "sepolia"
+    contract: "0xeaC8eEEE9f84F3E3F592e9D8604100eA1b788749"
+    price_proxy:
+      use_reference: "HOT"

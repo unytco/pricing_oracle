@@ -1,0 +1,39 @@
+[package]
+name = "pricing-oracle"
+version = "0.1.0"
+edition = "2021"
+description = "CLI pricing oracle for fetching token prices and building ConversionTable for Unyt DNA"
+license = "CAL-1.0"
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP
+reqwest = { version = "0.12", features = ["json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+rmp-serde = "1.1"
+
+# Async trait
+async-trait = "0.1"
+
+# Utilities
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Environment
+dotenvy = "0.15"
+
+# Holochain bridge
+holochain_client = "0.8.1-rc.0"
+holo_hash = { version = "0.6.1-rc.0", features = ["encoding"] }
+zfuel = "0.6.0"
