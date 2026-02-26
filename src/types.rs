@@ -43,13 +43,6 @@ pub struct ConversionTable {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ForexRate {
-    pub symbol: String,
-    pub name: String,
-    pub rate: ZFuel,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReferenceUnit {
     pub symbol: String,
     pub name: String,
@@ -63,7 +56,12 @@ pub struct ConversionData {
     pub sources: Vec<String>,
     pub contract: Option<String>,
 }
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ForexRate {
+    pub symbol: String,
+    pub name: String,
+    pub rate: ZFuel,
+}
 /// Minimal mirror of rave_engine's GlobalDefinitionExt.
 /// Only the `id` field is needed; remaining fields are ignored during
 /// MessagePack deserialization (named-map format).

@@ -76,6 +76,7 @@ If `forex.symbols` is empty or omitted, no forex API calls are made.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `COINGECKO_API_KEY` | No | — | Free demo key from coingecko.com. If unset, only GeckoTerminal is used. |
+| `COINMARKETCAP_API_KEY` | No | — | CoinMarketCap Pro API key. Enables CoinMarketCap token source. |
 | `TWELVE_DATA_API_KEY` | No | — | Twelve Data key for forex rates (`USD/<SYMBOL>`) |
 | `COINAPI_API_KEY` | No | — | CoinAPI key for forex rates (`USD/<SYMBOL>`) |
 | `HOLOCHAIN_ADMIN_PORT` | For `--submit` | `30000` | Holochain conductor admin port |
@@ -96,8 +97,9 @@ Sources are compiled into the binary. Adding a new source means adding a new mod
 |---|---|---|
 | **GeckoTerminal** | No | price, volume, market cap, liquidity |
 | **CoinGecko** | Yes (free demo key) | price, volume, market cap, 24h change |
+| **CoinMarketCap** | Yes (Pro API key) | price, volume, market cap, 24h change |
 
-Both sources are queried for each real unit. If only one source is available (e.g. no CoinGecko key), the single-source result is accepted without cross-checking.
+All enabled token sources are queried for each real unit. If only one source returns data, the single-source result is accepted without cross-checking.
 
 ### Forex sources
 

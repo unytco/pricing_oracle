@@ -63,6 +63,7 @@ async fn main() -> Result<()> {
     );
 
     let coingecko_key = std::env::var("COINGECKO_API_KEY").ok();
+    let coinmarketcap_key = std::env::var("COINMARKETCAP_API_KEY").ok();
     let twelve_data_key = std::env::var("TWELVE_DATA_API_KEY").ok();
     let coinapi_key = std::env::var("COINAPI_API_KEY").ok();
     let client = reqwest::Client::builder()
@@ -70,7 +71,7 @@ async fn main() -> Result<()> {
         .build()
         .context("building HTTP client")?;
 
-    let registry = sources::SourceRegistry::new(client, coingecko_key);
+    let registry = sources::SourceRegistry::new(client, coingecko_key, coinmarketcap_key);
     info!("Registered {} price source(s)", registry.source_count());
 
     let mut reference_prices: HashMap<String, types::AggregatedResult> = HashMap::new();
@@ -168,7 +169,6 @@ async fn main() -> Result<()> {
             proxied.unit_index = proxy_unit.unit_index;
             proxied.name = proxy_unit.name.clone();
             proxied.contract = proxy_unit.contract.clone();
-            proxied.sources = vec!["proxy".to_string()];
             aggregated.push(proxied);
         } else {
             let (kind, val) = match &source {

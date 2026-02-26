@@ -1,4 +1,5 @@
 pub mod coingecko;
+pub mod coinmarketcap;
 pub mod geckoterminal;
 
 use crate::config::UnitConfig;
@@ -17,14 +18,24 @@ pub struct SourceRegistry {
 }
 
 impl SourceRegistry {
-    pub fn new(client: reqwest::Client, coingecko_api_key: Option<String>) -> Self {
+    pub fn new(
+        client: reqwest::Client,
+        coingecko_api_key: Option<String>,
+        coinmarketcap_api_key: Option<String>,
+    ) -> Self {
         let mut sources: Vec<Box<dyn PriceSource>> =
             vec![Box::new(geckoterminal::GeckoTerminal::new(client.clone()))];
 
         if let Some(key) = coingecko_api_key {
-            sources.push(Box::new(coingecko::CoinGecko::new(client, key)));
+            sources.push(Box::new(coingecko::CoinGecko::new(client.clone(), key)));
         } else {
             tracing::warn!("COINGECKO_API_KEY not set; CoinGecko source disabled");
+        }
+
+        if let Some(key) = coinmarketcap_api_key {
+            sources.push(Box::new(coinmarketcap::CoinMarketCap::new(client, key)));
+        } else {
+            tracing::warn!("COINMARKETCAP_API_KEY not set; CoinMarketCap source disabled");
         }
 
         Self { sources }
