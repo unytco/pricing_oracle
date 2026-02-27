@@ -1,7 +1,7 @@
 use crate::types::{AggregatedResult, TokenData};
 use tracing::{info, warn};
 
-const DEVIATION_THRESHOLD: f64 = 0.01; // 1%
+const DEVIATION_THRESHOLD: f64 = 0.03; // 3%
 
 pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
     let name = data.first().map(|d| d.name.clone()).unwrap_or_default();
