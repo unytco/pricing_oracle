@@ -34,6 +34,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 
 # Holochain bridge
-holochain_client = "0.8.1-rc.0"
+holochain_client = "0.8.1-rc.5"
 holo_hash = { version = "0.6.1-rc.0", features = ["encoding"] }
-zfuel = "0.6.0"
+zfuel = "0.6.2"
