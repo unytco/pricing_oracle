@@ -34,6 +34,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 
 # Holochain bridge
-holochain_client = "0.8.1-rc.5"
-holo_hash = { version = "0.6.1-rc.0", features = ["encoding"] }
+# TODO(ham-migration): switch to `ham = { git = "https://github.com/unytco/ham.git", rev = "<sha>" }` once the ham repo is pushed to GitHub.
+ham = { path = "../ham" }
+holochain_client = "0.8.1-rc.7"
+holo_hash = { version = "0.6.1-rc.5", features = ["encoding"] }
 zfuel = "0.6.2"

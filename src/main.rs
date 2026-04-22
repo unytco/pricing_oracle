@@ -2,7 +2,6 @@ mod aggregate;
 mod config;
 mod forex;
 mod forex_aggregate;
-mod ham;
 mod output;
 mod sources;
 mod types;

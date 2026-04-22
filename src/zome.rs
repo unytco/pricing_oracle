@@ -1,6 +1,6 @@
-use crate::ham::Ham;
 use crate::types::{ConversionTable, GlobalDefinitionExt};
 use anyhow::{Context, Result};
+use ham::{Ham, HamConfig};
 use holo_hash::ActionHash;
 use tracing::info;
 
@@ -9,6 +9,9 @@ pub struct HolochainConfig {
     pub app_port: u16,
     pub app_id: String,
     pub role_name: String,
+    /// Per-request timeout applied to the Holochain app websocket. Bounds
+    /// how long a hung conductor call can block this cron invocation.
+    pub request_timeout_secs: u64,
 }
 
 impl HolochainConfig {
@@ -29,12 +32,23 @@ impl HolochainConfig {
         let role_name =
             std::env::var("HOLOCHAIN_ROLE_NAME").unwrap_or_else(|_| "alliance".to_string());
 
+        let request_timeout_secs: u64 = std::env::var("HAM_REQUEST_TIMEOUT_SECS")
+            .unwrap_or_else(|_| "120".to_string())
+            .parse()
+            .context("Invalid HAM_REQUEST_TIMEOUT_SECS")?;
+
         Ok(Self {
             admin_port,
             app_port,
             app_id,
             role_name,
+            request_timeout_secs,
         })
+    }
+
+    fn ham_config(&self) -> HamConfig {
+        HamConfig::new(self.admin_port, self.app_port, self.app_id.clone())
+            .with_request_timeout_secs(self.request_timeout_secs)
     }
 }
 
@@ -44,7 +58,7 @@ pub async fn fetch_global_definition(hc: &HolochainConfig) -> Result<ActionHash>
         hc.admin_port, hc.app_port, hc.app_id
     );
 
-    let ham = Ham::connect(hc.admin_port, hc.app_port, &hc.app_id)
+    let ham = Ham::connect(hc.ham_config())
         .await
         .context("Failed to connect to Holochain")?;
 
@@ -73,7 +87,7 @@ pub async fn submit_conversion_table(
         hc.admin_port, hc.app_port, hc.app_id
     );
 
-    let ham = Ham::connect(hc.admin_port, hc.app_port, &hc.app_id)
+    let ham = Ham::connect(hc.ham_config())
         .await
         .context("Failed to connect to Holochain")?;
 
