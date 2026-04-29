@@ -24,6 +24,15 @@ periodically on a server (cron / systemd timer).
 cargo build --release
 ```
 
+## Format
+
+Apply, then verify:
+
+```bash
+cargo fmt
+cargo fmt --check
+```
+
 ## Test
 
 ```bash
@@ -61,6 +70,21 @@ Per-server config under
 - Submits a `ConversionTable` consumed by the Unyt DNA in
   [`unyt-sandbox/unyt`](../unyt-sandbox/).
 - See workshop [`AGENTS.md`](../AGENTS.md) for the project map.
+
+## Changelog
+
+File: [`./CHANGELOG.md`](./CHANGELOG.md). Format: [Keep a Changelog
+1.1.0](https://keepachangelog.com/en/1.1.0/) with `## [Unreleased]` at
+the top and standard subsections (Added/Changed/Deprecated/Removed/
+Fixed/Security). One bullet per agent change, ≤120 chars,
+present-tense imperative. Branch-type → section mapping per workshop
+[`branch-and-pr-workflow.mdc`](../.cursor/rules/branch-and-pr-workflow.mdc).
+
+Because `pricing_oracle` is a `service` deployed by `automation/`,
+changelog entries should distinguish **operator-impacting** changes
+(new env vars, changed CLI flags, new price source defaults) — call
+those out under `### Changed` so the operator updating the cron knows
+to re-read the README before redeploying.
 
 ## Repo-specific rules
 
