@@ -1,17 +1,16 @@
 # pricing_oracle — Agent Instructions
 
+> **This repo follows the workshop root's patterns — it does not define its own.** Development workflow, process, changelog conventions, and spec/feature-doc discipline live in the workshop: [`CLAUDE.md`](../CLAUDE.md), [`AGENTS.md`](../AGENTS.md), [`documentation/DEVELOPMENT_WORKFLOW.md`](../documentation/DEVELOPMENT_WORKFLOW.md). Below is only what's specific to THIS repo.
+
 ## Purpose
 
-Rust CLI that fetches token prices and forex rates from external sources
+`service` (deployed, orchestrated from `automation/`) — Rust CLI that
+fetches token prices and forex rates from external sources
 (GeckoTerminal, CoinGecko, CoinMarketCap, Twelve Data, CoinAPI), validates
 them via cross-source agreement, and builds a `ConversionTable` compatible
 with the Unyt DNA. Optionally submits the table to a running Holochain
 conductor via the `transactor/create_conversion_table` zome call. Run
 periodically on a server (cron / systemd timer).
-
-## Classification
-
-`service` — deployed. Orchestrated from `automation/`.
 
 ## Stack
 
@@ -63,31 +62,12 @@ make setup-pricing-oracle PRICING_ORACLE_CONFIG=config/<server>/pricing-oracle.j
 Per-server config under
 [`automation/config/<server>/pricing-oracle.json`](../automation/config/).
 
-## Related repos in workshop
-
-- Depends on [`ham`](../ham/) for the Holochain client.
-- Deployed by [`automation/scripts/setup-pricing-oracle.sh`](../automation/scripts/setup-pricing-oracle.sh).
-- Submits a `ConversionTable` consumed by the Unyt DNA in
-  [`unyt-sandbox/unyt`](../unyt-sandbox/).
-- See workshop [`AGENTS.md`](../AGENTS.md) for the project map.
-
-## Changelog
-
-File: [`./CHANGELOG.md`](./CHANGELOG.md). Format: [Keep a Changelog
-1.1.0](https://keepachangelog.com/en/1.1.0/) with `## [Unreleased]` at
-the top and standard subsections (Added/Changed/Deprecated/Removed/
-Fixed/Security). One bullet per agent change, ≤120 chars,
-present-tense imperative. Branch-type → section mapping per workshop
-[`branch-and-pr-workflow.mdc`](../.cursor/rules/branch-and-pr-workflow.mdc).
-
-Because `pricing_oracle` is a `service` deployed by `automation/`,
-changelog entries should distinguish **operator-impacting** changes
-(new env vars, changed CLI flags, new price source defaults) — call
-those out under `### Changed` so the operator updating the cron knows
-to re-read the README before redeploying.
-
 ## Repo-specific rules
 
+- **Operator-impacting changes** (new env vars, changed CLI flags, new
+  price source defaults) MUST be called out in `CHANGELOG.md` under
+  `### Changed` — the operator updating the cron re-reads the README
+  before redeploying.
 - **Cross-source agreement is load-bearing.** A unit's price must agree
   within ±1% across all configured sources to be included. When only one
   source returns data, the single-source result is accepted. Do not
@@ -107,9 +87,3 @@ to re-read the README before redeploying.
   in; no plugin system.
 - **Server-side scheduling lives in `automation/`**, not here. Don't add
   internal timers or daemonize the binary.
-
-## Lessons learned
-
-_Append entries here whenever an agent (or human) loses time to something
-a guardrail would have prevented. Keep each entry: date, short symptom,
-concrete fix._
