@@ -2,6 +2,7 @@ use crate::types::{ConversionTable, GlobalDefinitionExt};
 use anyhow::{Context, Result};
 use ham::{Ham, HamConfig};
 use holo_hash::ActionHash;
+use std::path::Path;
 use tracing::info;
 
 pub struct HolochainConfig {
@@ -12,6 +13,12 @@ pub struct HolochainConfig {
     /// Per-request timeout applied to the Holochain app websocket. Bounds
     /// how long a hung conductor call can block this cron invocation.
     pub request_timeout_secs: u64,
+    /// Conductor config path — its `keystore.connection_url` is read to sign
+    /// zome calls via lair (no cap grant). Defaults to the fleet path.
+    pub conductor_config: String,
+    /// Lair passphrase file, read to unlock the keystore. Defaults to the
+    /// fleet path.
+    pub lair_passphrase_file: String,
 }
 
 impl HolochainConfig {
@@ -37,18 +44,30 @@ impl HolochainConfig {
             .parse()
             .context("Invalid HAM_REQUEST_TIMEOUT_SECS")?;
 
+        let conductor_config = std::env::var("CONDUCTOR_CONFIG")
+            .unwrap_or_else(|_| "/etc/holochain/conductor-config.yaml".to_string());
+
+        let lair_passphrase_file = std::env::var("LAIR_PASSPHRASE_FILE")
+            .unwrap_or_else(|_| "/var/lib/holochain/lair-passphrase".to_string());
+
         Ok(Self {
             admin_port,
             app_port,
             app_id,
             role_name,
             request_timeout_secs,
+            conductor_config,
+            lair_passphrase_file,
         })
     }
 
     fn ham_config(&self) -> HamConfig {
         HamConfig::new(self.admin_port, self.app_port, self.app_id.clone())
             .with_request_timeout_secs(self.request_timeout_secs)
+            .try_lair_signing_from_node(
+                Path::new(&self.conductor_config),
+                Path::new(&self.lair_passphrase_file),
+            )
     }
 }
 
