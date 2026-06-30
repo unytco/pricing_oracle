@@ -35,6 +35,6 @@ dotenvy = "0.15"
 
 # Holochain bridge
 ham = { git = "https://github.com/unytco/ham.git", branch = "main" }
-holochain_client = "0.8.1"
-holo_hash = { version = "0.6.1", features = ["encoding"] }
+holochain_client = "0.8.2-rc.0"
+holo_hash = { version = "0.6.2-rc.0", features = ["encoding"] }
 zfuel = "0.6.2"
