@@ -89,7 +89,7 @@ async fn main() -> Result<()> {
                     successful.push(data);
                 }
                 Err(e) => {
-                    tracing::warn!("  [{}] failed: {}", source_name, e);
+                    tracing::warn!("  [{}] failed: {:#}", source_name, e);
                 }
             }
         }
@@ -123,7 +123,7 @@ async fn main() -> Result<()> {
                     successful.push(data);
                 }
                 Err(e) => {
-                    tracing::warn!("  [{}] failed: {}", source_name, e);
+                    tracing::warn!("  [{}] failed: {:#}", source_name, e);
                 }
             }
         }
