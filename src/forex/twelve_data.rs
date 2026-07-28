@@ -79,7 +79,10 @@ impl ForexSource for TwelveData {
             }
 
             let Some(rate_str) = body.get("price").and_then(|v| v.as_str()) else {
-                warn!("Twelve Data USD/{} failed (missing price) — ignored", symbol);
+                warn!(
+                    "Twelve Data USD/{} failed (missing price) — ignored",
+                    symbol
+                );
                 continue;
             };
             let Ok(rate) = rate_str.parse::<f64>() else {
