@@ -12,8 +12,18 @@ clap = { version = "4", features = ["derive", "env"] }
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 
-# HTTP
-reqwest = { version = "0.12", features = ["json"] }
+# HTTP — rustls rather than reqwest's default native-tls, so the release build
+# needs no system OpenSSL headers; `rustls-tls-native-roots` keeps trusting the
+# host's CA store, as the OpenSSL backend did. `json` was always an explicit
+# opt-in; `charset`, `http2` and `system-proxy` are reqwest's own defaults,
+# re-listed here because `default-features = false` drops them too.
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "charset",
+    "http2",
+    "system-proxy",
+    "rustls-tls-native-roots",
+] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

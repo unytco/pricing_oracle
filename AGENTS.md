@@ -35,7 +35,8 @@ cargo fmt --check
 ## Test
 
 ```bash
-cargo test
+cargo test                # the default suite (no network; reads the host CA store)
+cargo test -- --ignored   # only the ignored live TLS handshake check (needs network)
 ```
 
 ## Run (local)

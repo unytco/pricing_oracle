@@ -32,7 +32,7 @@ pub fn aggregate_forex_rates(
                 }
             }
             Err(e) => warn!(
-                "forex source '{}' failed: {} — any symbols only from this source will be ignored, omitted from ConversionTable",
+                "forex source '{}' failed: {:#} — any symbols only from this source will be ignored, omitted from ConversionTable",
                 source_name, e
             ),
         }

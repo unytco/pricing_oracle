@@ -69,9 +69,7 @@ impl PriceSource for CoinMarketCap {
 
         let market_cap = usd_quote.get("market_cap").and_then(Value::as_f64);
         let volume_24h = usd_quote.get("volume_24h").and_then(Value::as_f64);
-        let price_change_24h = usd_quote
-            .get("percent_change_24h")
-            .and_then(Value::as_f64);
+        let price_change_24h = usd_quote.get("percent_change_24h").and_then(Value::as_f64);
 
         Ok(TokenData {
             name: unit.name.clone(),
