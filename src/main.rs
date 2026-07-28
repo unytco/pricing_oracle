@@ -2,6 +2,7 @@ mod aggregate;
 mod config;
 mod forex;
 mod forex_aggregate;
+mod http;
 mod output;
 mod sources;
 mod types;
@@ -65,12 +66,11 @@ async fn main() -> Result<()> {
     let coinmarketcap_key = std::env::var("COINMARKETCAP_API_KEY").ok();
     let twelve_data_key = std::env::var("TWELVE_DATA_API_KEY").ok();
     let coinapi_key = std::env::var("COINAPI_API_KEY").ok();
-    let client = reqwest::Client::builder()
-        .user_agent("pricing-oracle/0.1")
-        .build()
-        .context("building HTTP client")?;
+    // One client for every source: `reqwest::Client` is internally reference-counted,
+    // and building a second one would re-read and re-parse the host CA store.
+    let client = http::client()?;
 
-    let registry = sources::SourceRegistry::new(client, coingecko_key, coinmarketcap_key);
+    let registry = sources::SourceRegistry::new(client.clone(), coingecko_key, coinmarketcap_key);
     info!("Registered {} price source(s)", registry.source_count());
 
     let mut reference_prices: HashMap<String, types::AggregatedResult> = HashMap::new();
@@ -189,10 +189,7 @@ async fn main() -> Result<()> {
     let batch_size = cfg.forex.max_symbols_per_run;
     let delay_secs = cfg.forex.delay_between_batches_secs;
     let forex_registry = forex::ForexSourceRegistry::new(
-        reqwest::Client::builder()
-            .user_agent("pricing-oracle/0.1")
-            .build()
-            .context("building forex HTTP client")?,
+        client,
         twelve_data_key,
         coinapi_key,
         cfg.forex.use_twelve_data,
