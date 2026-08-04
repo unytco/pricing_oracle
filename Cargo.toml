@@ -44,13 +44,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 
 # Holochain bridge
-ham = { git = "https://github.com/unytco/ham.git", branch = "main" }
+ham = { git = "https://github.com/unytco/ham.git", branch = "main-0.7" }
 holochain_client = "0.9.0"
 holo_hash = { version = "0.7.0", features = ["encoding"] }
 zfuel = "0.9.0"
-
-# Local-only override so verification picks up the in-tree ham changes.
-# Drop this once the 0.7 ham release is pushed to
-# https://github.com/unytco/ham.git on main.
-[patch."https://github.com/unytco/ham.git"]
-ham = { path = "../ham" }
