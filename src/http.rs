@@ -45,22 +45,50 @@ mod tests {
             );
         }
 
+        if let Err(why) = every_openssl_sys_is_vendored(lockfile) {
+            panic!("{why}");
+        }
+    }
+
+    /// `Ok` when every `openssl-sys` package in `lockfile` vendors its own OpenSSL; `Err`
+    /// with what went wrong when one does not — or when the lockfile no longer reads
+    /// closely enough to tell.
+    fn every_openssl_sys_is_vendored(lockfile: &str) -> Result<(), String> {
         let stanzas: Vec<_> = openssl_sys_stanzas(lockfile).collect();
+        let entries = openssl_sys_entries(lockfile);
 
-        // Both readers must agree that `openssl-sys` is here, or the strict one below is
-        // scanning nothing and would pass on any lockfile at all.
-        assert!(
-            !has("openssl-sys") || !stanzas.is_empty(),
-            "Cargo.lock names `openssl-sys` but no `[[package]]` stanza for it parsed — \
-             the lockfile's layout changed and the vendoring check no longer reads it.",
-        );
+        // The vendoring check below only ever sees the stanzas that parsed, so a layout
+        // `openssl_sys_stanzas` misses shrinks what it scans instead of failing — down to
+        // nothing, which passes on any lockfile at all. Counting the entries a second,
+        // looser way is what turns a stanza that went missing into a failure.
+        if stanzas.len() != entries {
+            return Err(format!(
+                "Cargo.lock has {entries} `openssl-sys` package entries but only {} \
+                 `[[package]]` stanza(s) for it parsed — the lockfile's layout changed and \
+                 the vendoring check no longer reads every entry.",
+                stanzas.len(),
+            ));
+        }
 
-        assert!(
-            stanzas.into_iter().all(vendors_its_own_openssl),
-            "`openssl-sys` is in Cargo.lock without `openssl-src`, so it links the build \
-             host's OpenSSL rather than a vendored copy — the release build needs system \
-             OpenSSL headers again.",
-        );
+        if !stanzas.into_iter().all(vendors_its_own_openssl) {
+            return Err(
+                "`openssl-sys` is in Cargo.lock without `openssl-src`, so it links \
+                 the build host's OpenSSL rather than a vendored copy — the release build \
+                 needs system OpenSSL headers again."
+                    .to_owned(),
+            );
+        }
+
+        Ok(())
+    }
+
+    /// How many packages `lockfile` names `openssl-sys`, read line by line so it shares
+    /// none of `openssl_sys_stanzas`' assumptions about stanza layout or line endings.
+    fn openssl_sys_entries(lockfile: &str) -> usize {
+        lockfile
+            .lines()
+            .filter(|line| line.trim() == "name = \"openssl-sys\"")
+            .count()
     }
 
     /// Every `openssl-sys` `[[package]]` stanza in `lockfile`, minus its `[[package]]` line.
@@ -88,44 +116,90 @@ mod tests {
             })
     }
 
+    /// `openssl-src` as its own package, as a real lockfile carries it — enough on its own
+    /// to satisfy a whole-file presence check.
+    const OPENSSL_SRC_PREAMBLE: &str =
+        "version = 4\n\n[[package]]\nname = \"openssl-src\"\nversion = \"300.6.1\"\n";
+
+    /// One `openssl-sys` `[[package]]` stanza, laid out the way cargo writes it.
+    fn openssl_sys_stanza(version: &str, vendored: bool) -> String {
+        let openssl_src = if vendored { " \"openssl-src\",\n" } else { "" };
+        format!(
+            "\n[[package]]\nname = \"openssl-sys\"\nversion = \"{version}\"\n\
+             dependencies = [\n \"cc\",\n{openssl_src} \"pkg-config\",\n]\n"
+        )
+    }
+
     /// The hole the per-stanza read closes, and the one this crate cannot reproduce
     /// against its own lockfile: cargo re-resolves `Cargo.lock` before it compiles, so an
     /// unvendored `openssl-sys` only ever reaches the check as text.
     #[test]
     fn an_unvendored_openssl_sys_does_not_hide_behind_a_vendored_one() {
-        let every_openssl_sys_is_vendored =
-            |lockfile: &str| openssl_sys_stanzas(lockfile).all(vendors_its_own_openssl);
-        let stanza = |version: &str, vendored: bool| {
-            let openssl_src = if vendored { " \"openssl-src\",\n" } else { "" };
-            format!(
-                "\n[[package]]\nname = \"openssl-sys\"\nversion = \"{version}\"\n\
-                 dependencies = [\n \"cc\",\n{openssl_src} \"pkg-config\",\n]\n"
-            )
-        };
-        // `openssl-src` is its own package here, as it is in a real lockfile — enough on
-        // its own to satisfy a whole-file presence check.
-        let preamble =
-            "version = 4\n\n[[package]]\nname = \"openssl-src\"\nversion = \"300.6.1\"\n";
-
         assert!(
             every_openssl_sys_is_vendored(&format!(
-                "{preamble}{}{}",
-                stanza("0.9.117", true),
-                stanza("0.10.0", true)
-            )),
+                "{OPENSSL_SRC_PREAMBLE}{}{}",
+                openssl_sys_stanza("0.9.117", true),
+                openssl_sys_stanza("0.10.0", true)
+            ))
+            .is_ok(),
             "two vendored `openssl-sys` entries are the state the real lockfile is in",
         );
         assert!(
-            !every_openssl_sys_is_vendored(&format!(
-                "{preamble}{}{}",
-                stanza("0.9.117", true),
-                stanza("0.10.0", false)
-            )),
+            every_openssl_sys_is_vendored(&format!(
+                "{OPENSSL_SRC_PREAMBLE}{}{}",
+                openssl_sys_stanza("0.9.117", true),
+                openssl_sys_stanza("0.10.0", false)
+            ))
+            .is_err(),
             "the second, unvendored `openssl-sys` went unnoticed behind the vendored first",
         );
         assert!(
-            !every_openssl_sys_is_vendored(&format!("{preamble}{}", stanza("0.9.117", false))),
+            every_openssl_sys_is_vendored(&format!(
+                "{OPENSSL_SRC_PREAMBLE}{}",
+                openssl_sys_stanza("0.9.117", false)
+            ))
+            .is_err(),
             "a lone unvendored `openssl-sys` went unnoticed next to a stray `openssl-src`",
+        );
+    }
+
+    /// The hole the entry count closes: `openssl_sys_stanzas` reads one fixed layout, so a
+    /// lockfile written any other way narrows what the vendoring check scans rather than
+    /// failing, and an unvendored entry rides along in the part that never parsed.
+    #[test]
+    fn a_lockfile_the_stanza_reader_only_partly_parses_is_rejected() {
+        // The same package with `version` written ahead of `name`: an `openssl-sys` entry
+        // by any reading, no longer one `openssl_sys_stanzas` matches — and unvendored.
+        let unparsed = "\n[[package]]\nversion = \"0.10.0\"\nname = \"openssl-sys\"\n\
+                        dependencies = [\n \"cc\",\n \"pkg-config\",\n]\n";
+        let partial = format!(
+            "{OPENSSL_SRC_PREAMBLE}{}{unparsed}",
+            openssl_sys_stanza("0.9.117", true)
+        );
+
+        assert!(
+            openssl_sys_stanzas(&partial).all(vendors_its_own_openssl),
+            "the skipped entry is only a regression case while it stays invisible to the \
+             vendoring check — that check now sees it, so this proves nothing",
+        );
+        assert!(
+            every_openssl_sys_is_vendored(&partial).is_err(),
+            "an `openssl-sys` entry the reader skipped left the vendoring check passing on \
+             the subset it did parse",
+        );
+
+        // Nothing parsing at all is the same drift at its limit: every stanza boundary
+        // here is `\r\n[[package]]\r\n`, leaving a scan of no stanzas that agrees with any
+        // lockfile put to it.
+        let crlf = partial.replace('\n', "\r\n");
+        assert_eq!(
+            openssl_sys_stanzas(&crlf).count(),
+            0,
+            "a CRLF lockfile is meant to defeat the stanza reader outright here",
+        );
+        assert!(
+            every_openssl_sys_is_vendored(&crlf).is_err(),
+            "a lockfile the reader parsed nothing out of passed by default",
         );
     }
 
