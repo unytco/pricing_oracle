@@ -142,7 +142,7 @@ mod tests {
                 openssl_sys_stanza("0.10.0", true)
             ))
             .is_ok(),
-            "two vendored `openssl-sys` entries are the state the real lockfile is in",
+            "two vendored `openssl-sys` entries both pass — the accept case for a multi-version lockfile",
         );
         assert!(
             every_openssl_sys_is_vendored(&format!(
