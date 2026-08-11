@@ -83,11 +83,13 @@ mod tests {
     }
 
     /// How many packages `lockfile` names `openssl-sys`, read line by line so it shares
-    /// none of `openssl_sys_stanzas`' assumptions about stanza layout or line endings.
+    /// none of `openssl_sys_stanzas`' assumptions about stanza layout, line endings, or
+    /// the spacing cargo happens to write around an assignment.
     fn openssl_sys_entries(lockfile: &str) -> usize {
         lockfile
             .lines()
-            .filter(|line| line.trim() == "name = \"openssl-sys\"")
+            .filter_map(|line| line.split_once('='))
+            .filter(|(key, value)| key.trim() == "name" && value.trim() == "\"openssl-sys\"")
             .count()
     }
 
@@ -186,6 +188,23 @@ mod tests {
             every_openssl_sys_is_vendored(&partial).is_err(),
             "an `openssl-sys` entry the reader skipped left the vendoring check passing on \
              the subset it did parse",
+        );
+
+        // Spacing around the assignment is the same drift in miniature: cargo writes one
+        // space, and a stanza written with any other is no `openssl-sys` at all to a reader
+        // that matches the line whole.
+        let respaced = format!(
+            "{OPENSSL_SRC_PREAMBLE}\n[[package]]\nname =  \"openssl-sys\"\n\
+             version = \"0.10.0\"\ndependencies = [\n \"cc\",\n \"pkg-config\",\n]\n"
+        );
+        assert_eq!(
+            openssl_sys_stanzas(&respaced).count(),
+            0,
+            "the extra space is meant to defeat the stanza reader here",
+        );
+        assert!(
+            every_openssl_sys_is_vendored(&respaced).is_err(),
+            "an unvendored `openssl-sys` the stanza reader skipped over spacing alone passed",
         );
 
         // Nothing parsing at all is the same drift at its limit: every stanza boundary
