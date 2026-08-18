@@ -17,6 +17,7 @@ use tracing::info;
 #[derive(Parser, Debug)]
 #[command(
     name = "pricing-oracle",
+    version,
     about = "Fetch token prices, validate, build ConversionTable, and optionally submit to Unyt DNA"
 )]
 struct Args {

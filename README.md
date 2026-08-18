@@ -21,6 +21,7 @@ cargo run -- --submit       # fetch prices, resolve GlobalDefinition from Holoch
 | `-u, --unit <INDEX>` | Only process a single unit by its index |
 | `--dry-run` | Build the ConversionTable and print it as JSON without connecting to Holochain. Uses a zeroed placeholder for `global_definition`. Mutually exclusive with `--submit`. |
 | `--submit` | Connect to Holochain, fetch the current `GlobalDefinition`, build the ConversionTable with it, and call `create_conversion_table`. Mutually exclusive with `--dry-run`. |
+| `-V, --version` | Print the version and exit. This is the release tag without its leading `v`. |
 
 ## Configuration
 
@@ -153,6 +154,54 @@ When `--submit` is used, the CLI:
 6. Calls `transactor/create_conversion_table` and prints the resulting ActionHash.
 
 The agent running the CLI must be the `pricing_oracle` agent defined in the active `GlobalDefinition`.
+
+## Releases
+
+Releases are cut by pushing a semver tag:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The workflow validates the tag, checks it against the crate version in `Cargo.toml`, builds with `--locked`, and publishes. The tag and `Cargo.toml` must agree — bump and commit the crate version before tagging.
+
+Assets have **fixed names**, so a provisioning script can hardcode the URL:
+
+| Asset | Description |
+|---|---|
+| `pricing-oracle` | Stripped release binary, dynamically linked against glibc |
+| `pricing-oracle.sha256` | Digest of the binary, bare filename inside |
+| `config.yaml` | The in-repo default config — override it for your deployment |
+| `config.yaml.sha256` | Digest of the config |
+
+```text
+https://github.com/unytco/pricing_oracle/releases/download/v0.1.0/pricing-oracle
+https://github.com/unytco/pricing_oracle/releases/latest/download/pricing-oracle
+```
+
+`releases/latest/download/` resolves to the newest non-prerelease, so a node pointed at `latest` will not pick up an `-rc` tag.
+
+### Installing from cloud-init
+
+```bash
+VERSION=v0.1.0
+INSTALL_DIR=/opt/pricing-oracle
+
+mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+
+for asset in pricing-oracle pricing-oracle.sha256; do
+  curl -fsSL -o "$asset" \
+    "https://github.com/unytco/pricing_oracle/releases/download/${VERSION}/${asset}"
+done
+
+sha256sum -c pricing-oracle.sha256
+chmod 755 pricing-oracle
+```
+
+The binary is built on the same Ubuntu release the fleet droplets run, so it needs no toolchain on the target — only `ca-certificates`, since outbound HTTPS verifies against the host CA store.
+
+`config.yaml` is deployment-specific (unit list, contracts, forex symbols). Fetch it the same way for a starting point, but expect to replace it. `.env` is not a release asset; it carries API keys and is generated per deployment.
 
 ## Project structure
 
