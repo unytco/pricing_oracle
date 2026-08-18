@@ -48,3 +48,6 @@ ham = { git = "https://github.com/unytco/ham.git", branch = "main" }
 holochain_client = "0.9.0"
 holo_hash = { version = "0.7.0", features = ["encoding"] }
 zfuel = "0.9.0"
+
+[profile.release]
+strip = "symbols"
