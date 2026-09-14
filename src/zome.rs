@@ -1,8 +1,7 @@
 use crate::types::{ConversionTable, GlobalDefinitionExt};
 use anyhow::{Context, Result};
-use ham::{Ham, HamConfig};
+use ham::{CapGrantOptIn, Ham, HamConfig, LairCredentials};
 use holo_hash::ActionHash;
-use std::path::Path;
 use tracing::info;
 
 pub struct HolochainConfig {
@@ -70,11 +69,17 @@ impl HolochainConfig {
     pub fn ham_config(&self) -> Result<HamConfig> {
         HamConfig::new(self.admin_port, self.app_port, self.app_id.clone())
             .with_request_timeout_secs(self.request_timeout_secs)
-            .with_lair_signing_from_node(
-                Path::new(&self.conductor_config),
-                Path::new(&self.lair_passphrase_file),
+            .with_signing(
+                LairCredentials::Node {
+                    conductor_config: self.conductor_config.clone().into(),
+                    passphrase_file: self.lair_passphrase_file.clone().into(),
+                },
+                CapGrantOptIn::Withheld,
             )
-            .context("lair signing is required, and this node cannot offer it")
+            .context(
+                "CONDUCTOR_CONFIG / LAIR_PASSPHRASE_FILE must name a node whose conductor \
+                 runs an external lair_server",
+            )
     }
 }
 
@@ -258,8 +263,10 @@ mod tests {
             dir.path().join("lair-passphrase").display().to_string(),
         )
         .ham_config()
-        .expect_err("without lair there is no signing path that does not write to the chain")
-        .to_string();
+        .expect_err("without lair there is no signing path that does not write to the chain");
+        let err = format!("{err:#}");
+        // ham states the fault; the oracle names the knobs to turn.
         assert!(err.contains("lair signing is required"), "{err}");
+        assert!(err.contains("CONDUCTOR_CONFIG"), "{err}");
     }
 }
