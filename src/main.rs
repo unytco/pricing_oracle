@@ -63,6 +63,20 @@ async fn main() -> Result<()> {
         cfg.price_references.len()
     );
 
+    // Before a single source is called: a submit that cannot sign is going to
+    // fail either way, and finding that out after the fetch burns an hour of
+    // every price API's quota to learn it.
+    let hc_config = if args.submit {
+        let hc_config =
+            zome::HolochainConfig::from_env().context("loading Holochain config for --submit")?;
+        hc_config
+            .ham_config()
+            .context("preparing the Holochain connection for --submit")?;
+        Some(hc_config)
+    } else {
+        None
+    };
+
     let coingecko_key = std::env::var("COINGECKO_API_KEY").ok();
     let coinmarketcap_key = std::env::var("COINMARKETCAP_API_KEY").ok();
     let twelve_data_key = std::env::var("TWELVE_DATA_API_KEY").ok();
@@ -238,10 +252,7 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    if args.submit {
-        let hc_config =
-            zome::HolochainConfig::from_env().context("loading Holochain config for --submit")?;
-
+    if let Some(hc_config) = hc_config {
         let global_def = zome::fetch_global_definition(&hc_config)
             .await
             .context("fetching current GlobalDefinition")?;

@@ -61,13 +61,20 @@ impl HolochainConfig {
         })
     }
 
-    fn ham_config(&self) -> HamConfig {
+    /// The `HamConfig` every connection this oracle makes is built from. Lair
+    /// signing is required, never best-effort: the oracle holds a carried
+    /// agent key and migrates with it, and the signing path `ham` would
+    /// otherwise use commits a capability grant to that chain on every
+    /// connect. Against a chain that has already closed, that grant is invalid
+    /// and costs the agent its migration for good.
+    pub fn ham_config(&self) -> Result<HamConfig> {
         HamConfig::new(self.admin_port, self.app_port, self.app_id.clone())
             .with_request_timeout_secs(self.request_timeout_secs)
-            .try_lair_signing_from_node(
+            .with_lair_signing_from_node(
                 Path::new(&self.conductor_config),
                 Path::new(&self.lair_passphrase_file),
             )
+            .context("lair signing is required, and this node cannot offer it")
     }
 }
 
@@ -77,7 +84,7 @@ pub async fn fetch_global_definition(hc: &HolochainConfig) -> Result<ActionHash>
         hc.admin_port, hc.app_port, hc.app_id
     );
 
-    let ham = Ham::connect(hc.ham_config())
+    let ham = Ham::connect(hc.ham_config()?)
         .await
         .context("Failed to connect to Holochain")?;
 
@@ -106,7 +113,7 @@ pub async fn submit_conversion_table(
         hc.admin_port, hc.app_port, hc.app_id
     );
 
-    let ham = Ham::connect(hc.ham_config())
+    let ham = Ham::connect(hc.ham_config()?)
         .await
         .context("Failed to connect to Holochain")?;
 
@@ -123,4 +130,75 @@ pub async fn submit_conversion_table(
 
     info!("[submit] Created ConversionTable: {}", action_hash);
     Ok(action_hash)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HolochainConfig;
+
+    const LAIR_URL: &str = "unix:///var/lib/holochain/lair/socket?k=abc123";
+
+    /// A node laid out as the fleet lays one out: a conductor config naming an
+    /// external `lair_server`, and the passphrase that unlocks it.
+    fn node_with_lair() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("temp dir");
+        std::fs::write(
+            dir.path().join("conductor-config.yaml"),
+            format!("keystore:\n  type: lair_server\n  connection_url: {LAIR_URL}\n"),
+        )
+        .expect("write conductor config");
+        std::fs::write(dir.path().join("lair-passphrase"), b"deadbeef\n")
+            .expect("write lair passphrase");
+        dir
+    }
+
+    fn config(conductor_config: String, lair_passphrase_file: String) -> HolochainConfig {
+        HolochainConfig {
+            admin_port: 30000,
+            app_port: 30001,
+            app_id: "bridging-app".to_string(),
+            role_name: "alliance".to_string(),
+            request_timeout_secs: 120,
+            conductor_config,
+            lair_passphrase_file,
+        }
+    }
+
+    #[test]
+    fn the_oracle_connects_through_lair() {
+        let dir = node_with_lair();
+        let cfg = config(
+            dir.path()
+                .join("conductor-config.yaml")
+                .display()
+                .to_string(),
+            dir.path().join("lair-passphrase").display().to_string(),
+        )
+        .ham_config()
+        .expect("a node with an external lair_server configures lair signing");
+        assert_eq!(
+            cfg.lair.expect("lair signing").connection_url.as_str(),
+            LAIR_URL
+        );
+        assert!(
+            !cfg.allow_cap_grant_signing,
+            "the oracle never asks ham for the path that writes to its chain"
+        );
+    }
+
+    #[test]
+    fn a_node_without_lair_stops_the_oracle() {
+        let dir = node_with_lair();
+        let err = config(
+            dir.path()
+                .join("absent-conductor-config.yaml")
+                .display()
+                .to_string(),
+            dir.path().join("lair-passphrase").display().to_string(),
+        )
+        .ham_config()
+        .expect_err("without lair there is no signing path that does not write to the chain")
+        .to_string();
+        assert!(err.contains("lair signing is required"), "{err}");
+    }
 }
