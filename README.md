@@ -9,7 +9,7 @@ A Rust CLI that fetches token prices from multiple external sources, validates t
 cp .env.example .env       # edit as needed
 cargo run                   # fetch prices, print table
 cargo run -- --dry-run      # preview the ConversionTable JSON (no Holochain connection)
-cargo run -- --submit       # fetch prices, resolve GlobalDefinition from Holochain, submit
+cargo run -- --submit       # resolve GlobalDefinition from Holochain, fetch prices, submit
 ```
 
 ## CLI flags
@@ -20,7 +20,7 @@ cargo run -- --submit       # fetch prices, resolve GlobalDefinition from Holoch
 | `-o, --output <FORMAT>` | Output format: `table` (default) or `json` |
 | `-u, --unit <INDEX>` | Only process a single unit by its index |
 | `--dry-run` | Build the ConversionTable and print it as JSON without connecting to Holochain. Uses a zeroed placeholder for `global_definition`. Mutually exclusive with `--submit`. |
-| `--submit` | Connect to Holochain, fetch the current `GlobalDefinition`, build the ConversionTable with it, and call `create_conversion_table`. Mutually exclusive with `--dry-run`. |
+| `--submit` | Connect to Holochain and fetch the current `GlobalDefinition` before any price source, build the ConversionTable with it, and call `create_conversion_table`. Mutually exclusive with `--dry-run`. |
 | `-V, --version` | Print the version and exit. This is the release tag without its leading `v`. |
 
 ## Configuration
@@ -148,10 +148,11 @@ When `--submit` is used, the CLI:
 
 1. Reads Holochain connection settings from env.
 2. Connects to the conductor using the HAM (Holochain Agent Manager) pattern.
-3. Calls `transactor/get_current_global_definition` to obtain the current `GlobalDefinitionExt.id`.
-4. Builds the `ConversionTable` with the real `global_definition` ActionHash.
-5. Prints the table as JSON for visibility.
-6. Calls `transactor/create_conversion_table` and prints the resulting ActionHash.
+3. Calls `transactor/get_current_global_definition` to obtain the current `GlobalDefinitionExt.id`. This runs before the first price source: it is a signed call, so a node that cannot sign stops the run here instead of after an hour of fetching.
+4. Fetches and aggregates the configured prices and forex rates.
+5. Builds the `ConversionTable` with the real `global_definition` ActionHash.
+6. Prints the table as JSON for visibility.
+7. Calls `transactor/create_conversion_table` and prints the resulting ActionHash.
 
 The agent running the CLI must be the `pricing_oracle` agent defined in the active `GlobalDefinition`.
 
@@ -210,21 +211,24 @@ pricing_oracle/
 ├── Cargo.toml
 ├── config.yaml
 ├── .env.example
-└── src/
-    ├── main.rs              # CLI entry point, argument parsing, orchestration
-    ├── config.rs            # YAML config loading and validation
-    ├── types.rs             # TokenData, AggregatedResult, ConversionTable mirrors
-    ├── forex_aggregate.rs   # Forex symbol merge/fallback + validation
-    ├── sources/
-    │   ├── mod.rs           # PriceSource trait and SourceRegistry
-    │   ├── geckoterminal.rs # GeckoTerminal API implementation
-    │   └── coingecko.rs     # CoinGecko API implementation
-    ├── forex/
-    │   ├── mod.rs           # ForexSource trait and ForexSourceRegistry
-    │   ├── twelve_data.rs   # Twelve Data USD/<SYMBOL> implementation
-    │   └── coinapi.rs       # CoinAPI USD/<SYMBOL> implementation
-    ├── aggregate.rs         # Average calculation and 1% deviation check
-    ├── output.rs            # ConversionTable builder and print formatters
-    ├── ham.rs               # Holochain Agent Manager (admin/app websocket)
-    └── zome.rs              # fetch_global_definition + submit_conversion_table
+├── src/
+│   ├── main.rs              # CLI entry point, argument parsing, orchestration
+│   ├── config.rs            # YAML config loading and validation
+│   ├── types.rs             # TokenData, AggregatedResult, ConversionTable mirrors
+│   ├── forex_aggregate.rs   # Forex symbol merge/fallback + validation
+│   ├── sources/
+│   │   ├── mod.rs           # PriceSource trait and SourceRegistry
+│   │   ├── geckoterminal.rs # GeckoTerminal API implementation
+│   │   ├── coingecko.rs     # CoinGecko API implementation
+│   │   └── coinmarketcap.rs # CoinMarketCap API implementation
+│   ├── forex/
+│   │   ├── mod.rs           # ForexSource trait and ForexSourceRegistry
+│   │   ├── twelve_data.rs   # Twelve Data USD/<SYMBOL> implementation
+│   │   └── coinapi.rs       # CoinAPI USD/<SYMBOL> implementation
+│   ├── aggregate.rs         # Average calculation and 1% deviation check
+│   ├── http.rs              # The rustls HTTP client every source shares
+│   ├── output.rs            # ConversionTable builder and print formatters
+│   └── zome.rs              # Submission: the signed GlobalDefinition read, then create_conversion_table
+└── tests/
+    └── submit_probes_before_fetching.rs  # Where the signing check sits in a --submit run
 ```

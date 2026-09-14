@@ -78,7 +78,35 @@ impl HolochainConfig {
     }
 }
 
-pub async fn fetch_global_definition(hc: &HolochainConfig) -> Result<ActionHash> {
+/// A `HolochainConfig` whose signing path has been proven, and the
+/// `GlobalDefinition` the proving call returned. Reading the conductor config
+/// and the passphrase file proves only that they are readable, so this is built
+/// before the first price source instead. The proving connection is dropped:
+/// an hour of fetching separates it from the submit, which reconnects.
+pub struct Submission {
+    hc: HolochainConfig,
+    global_definition: ActionHash,
+}
+
+impl Submission {
+    pub async fn prepare(hc: HolochainConfig) -> Result<Self> {
+        let global_definition = fetch_global_definition(&hc).await?;
+        Ok(Self {
+            hc,
+            global_definition,
+        })
+    }
+
+    pub fn global_definition(&self) -> ActionHash {
+        self.global_definition.clone()
+    }
+
+    pub async fn submit(self, table: ConversionTable) -> Result<ActionHash> {
+        submit_conversion_table(&self.hc, table).await
+    }
+}
+
+async fn fetch_global_definition(hc: &HolochainConfig) -> Result<ActionHash> {
     info!(
         "[gd] Connecting to Holochain (admin:{}, app:{}, app_id:{})",
         hc.admin_port, hc.app_port, hc.app_id
@@ -104,7 +132,7 @@ pub async fn fetch_global_definition(hc: &HolochainConfig) -> Result<ActionHash>
     Ok(action_hash)
 }
 
-pub async fn submit_conversion_table(
+async fn submit_conversion_table(
     hc: &HolochainConfig,
     table: ConversionTable,
 ) -> Result<ActionHash> {
@@ -134,7 +162,8 @@ pub async fn submit_conversion_table(
 
 #[cfg(test)]
 mod tests {
-    use super::HolochainConfig;
+    use super::{HolochainConfig, Submission};
+    use holo_hash::ActionHash;
 
     const LAIR_URL: &str = "unix:///var/lib/holochain/lair/socket?k=abc123";
 
@@ -183,6 +212,38 @@ mod tests {
         assert!(
             !cfg.allow_cap_grant_signing,
             "the oracle never asks ham for the path that writes to its chain"
+        );
+    }
+
+    /// The hand-off the reorder created: the hash the probe read before the
+    /// fetch is the one the table carries an hour later. Dropping it is not a
+    /// visible failure, because `build_conversion_table` substitutes a
+    /// placeholder no `GlobalDefinition` can resolve from.
+    #[test]
+    fn the_hash_the_probe_read_is_the_one_submitted() {
+        let proven = ActionHash::from_raw_36(vec![7u8; 36]);
+        let submission = Submission {
+            hc: config(
+                "conductor-config.yaml".to_string(),
+                "lair-passphrase".to_string(),
+            ),
+            global_definition: proven.clone(),
+        };
+
+        let carried =
+            crate::output::build_conversion_table(&[], &[], Some(submission.global_definition()))
+                .expect("a table with no units still builds")
+                .global_definition;
+        assert_eq!(carried, proven);
+
+        let dropped = crate::output::build_conversion_table(&[], &[], None)
+            .expect("a table with no units still builds")
+            .global_definition;
+        assert_eq!(
+            dropped,
+            ActionHash::from_raw_36(vec![0u8; 36]),
+            "a submit that lost the prepared hash would anchor the table to a \
+             GlobalDefinition that cannot exist, an hour into the run"
         );
     }
 
