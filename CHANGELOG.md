@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tag-driven release workflow: pushing a semver tag builds a stripped `pricing-oracle` and publishes it alongside `config.yaml` (each with a `.sha256`) as fixed-name GitHub release assets.
 - `--version` on the CLI, derived from the crate version. The release asset has a fixed filename, so this is how a deployed binary identifies itself.
-- Sign zome calls via lair (`CONDUCTOR_CONFIG` + `LAIR_PASSPHRASE_FILE`, defaulting to the fleet paths), committing no capability grant per run. A node that cannot offer lair stops the run with the reason instead of writing to the oracle's chain.
 
 ### Changed
 
+- Sign zome calls via lair (`CONDUCTOR_CONFIG` + `LAIR_PASSPHRASE_FILE`, defaulting to the fleet paths), committing no capability grant per run. A node that cannot offer lair stops the run with the reason instead of writing to the oracle's chain.
 - **Operators:** a node can be provisioned straight from a release — `https://github.com/unytco/pricing_oracle/releases/latest/download/pricing-oracle` — with no repo checkout and no build on the operator's host. `latest` resolves to the newest non-prerelease, so `-rc` tags are not picked up by a node pointed at it.
 - Rust toolchain pinned to 1.96.1 via `rust-toolchain.toml`, so release builds and local development cannot disagree about the compiler.
 - `[profile.release]` sets `strip = "symbols"`, so every release build produces the same ~4.8 MB smaller binary whether it comes from CI or an operator's host.
