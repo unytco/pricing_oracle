@@ -63,6 +63,18 @@ async fn main() -> Result<()> {
         cfg.price_references.len()
     );
 
+    let submission = if args.submit {
+        let hc_config =
+            zome::HolochainConfig::from_env().context("loading Holochain config for --submit")?;
+        Some(
+            zome::Submission::prepare(hc_config)
+                .await
+                .context("--submit could not read the current GlobalDefinition")?,
+        )
+    } else {
+        None
+    };
+
     let coingecko_key = std::env::var("COINGECKO_API_KEY").ok();
     let coinmarketcap_key = std::env::var("COINMARKETCAP_API_KEY").ok();
     let twelve_data_key = std::env::var("TWELVE_DATA_API_KEY").ok();
@@ -238,20 +250,16 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    if args.submit {
-        let hc_config =
-            zome::HolochainConfig::from_env().context("loading Holochain config for --submit")?;
-
-        let global_def = zome::fetch_global_definition(&hc_config)
-            .await
-            .context("fetching current GlobalDefinition")?;
-
-        let table =
-            output::build_conversion_table(&aggregated, &aggregated_forex, Some(global_def))?;
+    if let Some(submission) = submission {
+        let table = output::build_conversion_table(
+            &aggregated,
+            &aggregated_forex,
+            Some(submission.global_definition()),
+        )?;
         println!("--- ConversionTable to submit ---");
         output::print_json(&table)?;
 
-        let action_hash = zome::submit_conversion_table(&hc_config, table).await?;
+        let action_hash = submission.submit(table).await?;
         println!("Submitted ConversionTable: {}", action_hash);
         return Ok(());
     }
