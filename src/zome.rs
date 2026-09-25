@@ -84,10 +84,12 @@ impl HolochainConfig {
 }
 
 /// A `HolochainConfig` whose signing path has been proven, and the
-/// `GlobalDefinition` the proving call returned. Reading the conductor config
-/// and the passphrase file proves only that they are readable, so this is built
-/// before the first price source instead. The proving connection is dropped:
-/// an hour of fetching separates it from the submit, which reconnects.
+/// `GlobalDefinition` the proving call returned, which the table names. The
+/// coordinator cites the definition in force when it writes, whatever the table
+/// names. Reading the conductor config and the passphrase file proves only that
+/// they are readable, so this is built before the first price source instead.
+/// The proving connection is dropped: an hour of fetching separates it from the
+/// submit, which reconnects.
 pub struct Submission {
     hc: HolochainConfig,
     global_definition: ActionHash,
@@ -220,12 +222,11 @@ mod tests {
         );
     }
 
-    /// The hand-off the reorder created: the hash the probe read before the
-    /// fetch is the one the table carries an hour later. Dropping it is not a
-    /// visible failure, because `build_conversion_table` substitutes a
-    /// placeholder no `GlobalDefinition` can resolve from.
+    /// The table a `--submit` run prints and sends names what the probe read,
+    /// not what the chain records: the coordinator cites the definition in
+    /// force when it writes.
     #[test]
-    fn the_hash_the_probe_read_is_the_one_submitted() {
+    fn the_table_sent_names_the_definition_the_probe_read() {
         let proven = ActionHash::from_raw_36(vec![7u8; 36]);
         let submission = Submission {
             hc: config(
@@ -235,20 +236,19 @@ mod tests {
             global_definition: proven.clone(),
         };
 
-        let carried =
+        let named =
             crate::output::build_conversion_table(&[], &[], Some(submission.global_definition()))
                 .expect("a table with no units still builds")
                 .global_definition;
-        assert_eq!(carried, proven);
+        assert_eq!(named, proven);
 
-        let dropped = crate::output::build_conversion_table(&[], &[], None)
+        let unprobed = crate::output::build_conversion_table(&[], &[], None)
             .expect("a table with no units still builds")
             .global_definition;
         assert_eq!(
-            dropped,
+            unprobed,
             ActionHash::from_raw_36(vec![0u8; 36]),
-            "a submit that lost the prepared hash would anchor the table to a \
-             GlobalDefinition that cannot exist, an hour into the run"
+            "a table built without a probe, as --dry-run builds one, names a zeroed placeholder"
         );
     }
 
