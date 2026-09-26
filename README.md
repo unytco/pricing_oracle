@@ -150,7 +150,7 @@ When `--submit` is used, the CLI:
 2. Connects to the conductor using the HAM (Holochain Agent Manager) pattern.
 3. Calls `transactor/get_current_global_definition` to obtain the current `GlobalDefinitionExt.id`. This runs before the first price source: it is a signed call, so a node that cannot sign stops the run here instead of after an hour of fetching.
 4. Fetches and aggregates the configured prices and forex rates.
-5. Builds the `ConversionTable` with the real `global_definition` ActionHash.
+5. Builds the `ConversionTable` naming that `global_definition`. `create_conversion_table` replaces it with the definition in force when it writes.
 6. Prints the table as JSON for visibility.
 7. Calls `transactor/create_conversion_table` and prints the resulting ActionHash.
 
