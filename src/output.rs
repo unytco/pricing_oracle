@@ -1,7 +1,8 @@
 use crate::forex_aggregate::AggregatedForexRate;
-use crate::types::{AggregatedResult, ConversionData, ConversionTable, ForexRate, ReferenceUnit};
+use crate::types::AggregatedResult;
 use anyhow::{Context, Result};
 use holo_hash::ActionHash;
+use rave_engine::types::{ConversionData, ConversionTable, ForexRate, ReferenceUnit};
 use std::collections::HashMap;
 use std::str::FromStr;
 use zfuel::fuel::ZFuel;
@@ -105,4 +106,56 @@ pub fn print_json(table: &ConversionTable) -> Result<()> {
     let json = serde_json::to_string_pretty(table).context("serializing ConversionTable")?;
     println!("{}", json);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_conversion_table;
+    use crate::forex_aggregate::AggregatedForexRate;
+    use crate::types::AggregatedResult;
+    use holo_hash::ActionHash;
+    use holochain_client::ExternIO;
+    use rave_engine::types::ConversionTable;
+
+    fn unit(unit_index: u32, avg_price_usd: f64) -> AggregatedResult {
+        AggregatedResult {
+            unit_index,
+            name: format!("unit {unit_index}"),
+            contract: format!("0x{unit_index:040x}"),
+            avg_price_usd,
+            volume_24h: Some(1_234_567.891),
+            price_change_24h: Some(-2.5),
+            sources: vec!["coingecko".to_string(), "geckoterminal".to_string()],
+            valid: true,
+            per_source: vec![],
+        }
+    }
+
+    /// ham sends `ExternIO::encode(table)`, and `create_conversion_table` decodes
+    /// it as rave_engine's `ConversionTable`. Compared as JSON, not with
+    /// `PartialEq`, so a table type of the oracle's own still compiles here and
+    /// fails if the DNA would read it differently.
+    #[test]
+    fn the_dna_decodes_the_table_the_oracle_sends() {
+        let sent = build_conversion_table(
+            &[unit(0, 0.00123456), unit(1, 42.5)],
+            &[AggregatedForexRate {
+                symbol: "EUR".to_string(),
+                name: "Euro".to_string(),
+                foreign_per_usd: 0.93,
+            }],
+            Some(ActionHash::from_raw_36(vec![7u8; 36])),
+        )
+        .expect("the table builds");
+
+        let received: ConversionTable = ExternIO::encode(&sent)
+            .expect("ham encodes the table")
+            .decode()
+            .expect("the DNA decodes the table");
+
+        assert_eq!(
+            serde_json::to_value(&received).expect("received as JSON"),
+            serde_json::to_value(&sent).expect("sent as JSON"),
+        );
+    }
 }

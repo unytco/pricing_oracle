@@ -47,6 +47,7 @@ dotenvy = "0.15"
 ham = { git = "https://github.com/unytco/ham.git", rev = "4e1063602045e1b2a8aceacd5d75eedc3e3ecba3" }
 holochain_client = "0.9.0"
 holo_hash = { version = "0.7.0", features = ["encoding"] }
+rave_engine = "=0.13.0"
 zfuel = "0.9.0"
 
 [profile.release]

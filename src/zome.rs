@@ -1,7 +1,7 @@
-use crate::types::{ConversionTable, GlobalDefinitionExt};
 use anyhow::{Context, Result};
 use ham::{CapGrantOptIn, Ham, HamConfig, LairCredentials};
 use holo_hash::ActionHash;
+use rave_engine::types::{ConversionTable, GlobalDefinitionExt};
 use tracing::info;
 
 pub struct HolochainConfig {
