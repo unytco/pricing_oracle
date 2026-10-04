@@ -119,7 +119,7 @@ When only one source returns data, the cross-check is skipped and the result is 
 
 ## Output: ConversionTable
 
-The output is structured as a `ConversionTable` (mirroring the `rave_engine` type):
+The oracle fills `rave_engine`'s `ConversionTable`:
 
 ```
 ConversionTable
@@ -214,7 +214,7 @@ pricing_oracle/
 ├── src/
 │   ├── main.rs              # CLI entry point, argument parsing, orchestration
 │   ├── config.rs            # YAML config loading and validation
-│   ├── types.rs             # TokenData, AggregatedResult, ConversionTable mirrors
+│   ├── types.rs             # TokenData, AggregatedResult
 │   ├── forex_aggregate.rs   # Forex symbol merge/fallback + validation
 │   ├── sources/
 │   │   ├── mod.rs           # PriceSource trait and SourceRegistry
