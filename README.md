@@ -123,7 +123,7 @@ The oracle fills `rave_engine`'s `ConversionTable`:
 
 ```
 ConversionTable
-├── reference_unit: { symbol: "USD", name: "US Dollar" }
+├── reference_unit: { symbol: "$", name: "US Dollar" }
 ├── data: HashMap<unit_index, ConversionData>
 │   └── ConversionData
 │       ├── current_price: ZFuel
