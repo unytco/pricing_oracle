@@ -181,6 +181,8 @@ done
 
 sha256sum -c pricing-oracle.sha256 "$CONFIG.sha256"
 chmod 755 pricing-oracle
+
+"$INSTALL_DIR/pricing-oracle" --submit --config "$INSTALL_DIR/$CONFIG"
 ```
 
 The binary is built on the same Ubuntu release the fleet droplets run, so it needs no toolchain on the target — only `ca-certificates`, since outbound HTTPS verifies against the host CA store.
