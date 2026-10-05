@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tag-driven release workflow: pushing a semver tag builds a stripped `pricing-oracle` and publishes it alongside `config.yaml` (each with a `.sha256`) as fixed-name GitHub release assets.
 - `--version` on the CLI, derived from the crate version. The release asset has a fixed filename, so this is how a deployed binary identifies itself.
+- `config.mainnet.yaml` prices HF and HOT as real HOT on Ethereum mainnet, and each release publishes it with its `.sha256`.
 
 ### Changed
 
+- `--config` has no default, and the oracle refuses a config whose units name more than one chain.
 - Uses `rave_engine` 0.13.0's `ConversionTable` and `GlobalDefinitionExt`.
 - The lair requirement is `ham`'s decision, supplied with the oracle's two paths, rather than restated here. A refusal names the fault before the reason the node could not offer lair.
 - Sign zome calls via lair (`CONDUCTOR_CONFIG` + `LAIR_PASSPHRASE_FILE`, defaulting to the fleet paths), committing no capability grant per run. A node that cannot offer lair stops the run with the reason instead of writing to the oracle's chain. Under `--submit` that first signed call is made before any price source, so a lair that is present but stopped costs no API quota to discover.

@@ -6,17 +6,17 @@ A Rust CLI that fetches token prices from multiple external sources, validates t
 
 ```bash
 # From the pricing_oracle/ directory
-cp .env.example .env       # edit as needed
-cargo run                   # fetch prices, print table
-cargo run -- --dry-run      # preview the ConversionTable JSON (no Holochain connection)
-cargo run -- --submit       # resolve GlobalDefinition from Holochain, fetch prices, submit
+cp .env.example .env                         # edit as needed
+cargo run -- -c config.yaml                  # fetch TestNet prices, print table
+cargo run -- -c config.yaml --dry-run        # preview the ConversionTable JSON (no Holochain connection)
+cargo run -- -c config.mainnet.yaml --submit # resolve GlobalDefinition from Holochain, fetch prices, submit
 ```
 
 ## CLI flags
 
 | Flag | Description |
 |---|---|
-| `-c, --config <PATH>` | Path to the YAML config file (default: `config.yaml`) |
+| `-c, --config <PATH>` | Required. The network's config file: `config.yaml` for TestNet, `config.mainnet.yaml` for MainNet |
 | `-o, --output <FORMAT>` | Output format: `table` (default) or `json` |
 | `-u, --unit <INDEX>` | Only process a single unit by its index |
 | `--dry-run` | Build the ConversionTable and print it as JSON without connecting to Holochain. Uses a zeroed placeholder for `global_definition`. Mutually exclusive with `--submit`. |
@@ -25,9 +25,18 @@ cargo run -- --submit       # resolve GlobalDefinition from Holochain, fetch pri
 
 ## Configuration
 
-### config.yaml
+### Network configs
 
-Defines the units the oracle tracks (each with a `unit_index`, `name`, `chain`, and `contract`) and optionally **price references** — tokens that are fetched for pricing but have no `unit_index` and do not appear in the ConversionTable.
+The code is the same on both networks. Only the config differs:
+
+| File | Network | Units 0 (`HF`) and 1 (`HOT`) |
+|---|---|---|
+| `config.yaml` | TestNet | `chain: sepolia`, MockHOT |
+| `config.mainnet.yaml` | MainNet | `chain: ethereum`, HOT |
+
+Both price units 0 and 1 from the `HOT` price reference, real HOT on `ethereum`, and carry the same forex list. Every unit in a file names the same `chain`: the oracle refuses a file whose units name more than one. Price references are exempt.
+
+A config file defines the units the oracle tracks (each with a `unit_index`, `name`, `chain`, and `contract`) and optionally **price references** — tokens that are fetched for pricing but have no `unit_index` and do not appear in the ConversionTable.
 
 - **units** — Entries that appear in the ConversionTable. Each has a unique `unit_index`. Units without `price_proxy` are fetched from price sources; units with `price_proxy` inherit price from another unit or from a price reference.
 - **price_references** (optional) — Tokens used only as price sources. They have an `id`, `name`, `chain`, and `contract` (no `unit_index`). They are fetched and aggregated like real units, but never get a row in the ConversionTable. Use them when a unit should proxy from a token that is not part of the network’s unit list.
@@ -39,34 +48,6 @@ Defines the units the oracle tracks (each with a `unit_index`, `name`, `chain`, 
 
 - **use_unit** — Unit index in the same `units` list (same config as before).
 - **use_reference** — Id of an entry in `price_references`.
-
-```yaml
-# Tokens fetched for price only; not in ConversionTable
-price_references:
-  - id: "HOT"
-    name: "HOT"
-    chain: "ethereum"
-    contract: "0x6c6ee5e31d828de241282b9606c8e98ea48526e2"
-
-forex:
-  max_symbols_per_run: 8
-  delay_between_batches_secs: 65   # optional; 65s for Twelve Data free tier
-  use_twelve_data: true
-  use_coinapi: false
-  symbols:
-    - "USD"
-    - "EUR"
-    - "GBP"
-    - "JPY"
-
-units:
-  - unit_index: 0
-    name: "HOTMOCK"
-    chain: "sepolia"
-    contract: "0xeaC8eEEE9f84F3E3F592e9D8604100eA1b788749"
-    price_proxy:
-      use_reference: "HOT"
-```
 
 You can still proxy from another unit in the list: use `price_proxy: { use_unit: 0 }` instead of `use_reference`.
 
@@ -172,8 +153,10 @@ Assets have **fixed names**, so a provisioning script can hardcode the URL:
 |---|---|
 | `pricing-oracle` | Stripped release binary, dynamically linked against glibc |
 | `pricing-oracle.sha256` | Digest of the binary, bare filename inside |
-| `config.yaml` | The in-repo default config — override it for your deployment |
-| `config.yaml.sha256` | Digest of the config |
+| `config.yaml` | TestNet config |
+| `config.yaml.sha256` | Digest of the TestNet config |
+| `config.mainnet.yaml` | MainNet config |
+| `config.mainnet.yaml.sha256` | Digest of the MainNet config |
 
 ```text
 https://github.com/unytco/pricing_oracle/releases/download/v0.1.0/pricing-oracle
@@ -186,30 +169,32 @@ https://github.com/unytco/pricing_oracle/releases/latest/download/pricing-oracle
 
 ```bash
 VERSION=v0.1.0
+CONFIG=config.mainnet.yaml   # config.yaml on TestNet
 INSTALL_DIR=/opt/pricing-oracle
 
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-for asset in pricing-oracle pricing-oracle.sha256; do
+for asset in pricing-oracle pricing-oracle.sha256 "$CONFIG" "$CONFIG.sha256"; do
   curl -fsSL -o "$asset" \
     "https://github.com/unytco/pricing_oracle/releases/download/${VERSION}/${asset}"
 done
 
-sha256sum -c pricing-oracle.sha256
+sha256sum -c pricing-oracle.sha256 "$CONFIG.sha256"
 chmod 755 pricing-oracle
 ```
 
 The binary is built on the same Ubuntu release the fleet droplets run, so it needs no toolchain on the target — only `ca-certificates`, since outbound HTTPS verifies against the host CA store.
 
-`config.yaml` is deployment-specific (unit list, contracts, forex symbols). Fetch it the same way for a starting point, but expect to replace it. `.env` is not a release asset; it carries API keys and is generated per deployment.
+`.env` is not a release asset; it carries API keys and is generated per deployment.
 
 ## Project structure
 
 ```
 pricing_oracle/
 ├── Cargo.toml
-├── config.yaml
+├── config.yaml              # TestNet
+├── config.mainnet.yaml      # MainNet
 ├── .env.example
 ├── src/
 │   ├── main.rs              # CLI entry point, argument parsing, orchestration
@@ -230,5 +215,7 @@ pricing_oracle/
 │   ├── output.rs            # ConversionTable builder and print formatters
 │   └── zome.rs              # Submission: the signed GlobalDefinition read, then create_conversion_table
 └── tests/
+    ├── common/mod.rs                     # Runs the binary in a temp dir, cut off from third parties
+    ├── one_network_per_config.rs         # --config is required and names one chain
     └── submit_probes_before_fetching.rs  # Where the signing check sits in a --submit run
 ```

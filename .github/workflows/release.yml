@@ -97,13 +97,12 @@ jobs:
             exit 1
           fi
 
-          # The in-repo default, so a node needs no checkout. Deployments are
-          # expected to override it.
-          cp config.yaml release/
+          cp config.yaml config.mainnet.yaml release/
 
           # Bare filenames, so `sha256sum -c` works beside the downloads.
-          ( cd release && sha256sum pricing-oracle > pricing-oracle.sha256 )
-          ( cd release && sha256sum config.yaml > config.yaml.sha256 )
+          for asset in pricing-oracle config.yaml config.mainnet.yaml; do
+            ( cd release && sha256sum "$asset" > "$asset.sha256" )
+          done
 
           ls -lh release/
 
@@ -150,6 +149,8 @@ jobs:
             release/pricing-oracle.sha256
             release/config.yaml
             release/config.yaml.sha256
+            release/config.mainnet.yaml
+            release/config.mainnet.yaml.sha256
           )
 
           # Converge rather than fail when re-running a partially failed release.

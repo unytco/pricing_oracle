@@ -1,0 +1,77 @@
+# Tokens fetched for price only; not in ConversionTable, no unit_index
+price_references:
+  - id: "HOT"
+    name: "HOT"
+    chain: "ethereum"
+    contract: "0x6c6ee5e31d828de241282b9606c8e98ea48526e2"
+
+units:
+  - unit_index: 0
+    name: "HF"
+    chain: "ethereum"
+    contract: "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
+    price_proxy:
+      use_reference: "HOT"
+  - unit_index: 1
+    name: "HOT"
+    chain: "ethereum"
+    contract: "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
+    price_proxy:
+      use_reference: "HOT"
+
+forex:
+  # Free-tier: fetch in batches of 8, wait 65s between batches to stay within credits/minute
+  max_symbols_per_run: 8
+  delay_between_batches_secs: 65
+  use_twelve_data: true
+  use_coinapi: true
+  symbols:
+    - "USD"
+    - "EUR"
+    - "GBP"
+    - "INR"
+    - "JPY"
+    - "CAD"
+    - "CNY"
+    - "AUD"
+    # - "CHF"
+    # - "NZD"
+    # - "SEK"
+    # - "NOK"
+    # - "DKK"
+    # - "PLN"
+    # - "CZK"
+    # - "HUF"
+    # - "RON"
+    # - "TRY"
+    # - "RUB"
+    # - "UAH"
+    # - "ILS"
+    # - "AED"
+    # - "SAR"
+    # - "QAR"
+    # - "KWD"
+    # - "BHD"
+    # - "OMR"
+    # - "ZAR"
+    # - "EGP"
+    # - "NGN"
+    # - "KES"
+    # - "PKR"
+    # - "BDT"
+    # - "HKD"
+    # - "SGD"
+    # - "KRW"
+    # - "TWD"
+    # - "THB"
+    # - "MYR"
+    # - "IDR"
+    # - "PHP"
+    # - "VND"
+    # - "MXN"
+    # - "BRL"
+    # - "ARS"
+    # - "CLP"
+    # - "COP"
+    # - "PEN"
+    # - "UYU"

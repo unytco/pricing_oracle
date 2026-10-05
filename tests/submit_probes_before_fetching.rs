@@ -1,11 +1,9 @@
 //! Where the signing check sits in a `--submit` run. Driven through the real
 //! binary: the ordering is a property of the run, and no smaller unit holds it.
 
-use std::io::Read;
-use std::net::{Ipv4Addr, TcpListener};
-use std::path::Path;
-use std::process::{Command, ExitStatus, Stdio};
-use std::time::{Duration, Instant};
+mod common;
+
+use common::run_oracle;
 
 /// Enough for a run that reaches the sources to log that it is fetching. Forex
 /// is off: it adds nothing here, and its batch delays are the slowest part of a
@@ -63,66 +61,10 @@ fn node_with_a_stopped_lair(config: &str) -> tempfile::TempDir {
     dir
 }
 
-fn closed_port() -> u16 {
-    TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
-        .expect("bind an ephemeral port")
-        .local_addr()
-        .expect("read the bound address")
-        .port()
-}
-
-/// The run's own directory is its working directory, so it reads the config
-/// written there and finds no `.env` of the developer's to inherit.
-///
-/// Bounded: a regression that hangs against an absent conductor fails this test
-/// rather than the suite.
-fn run_oracle(dir: &Path, args: &[&str]) -> (ExitStatus, String) {
-    let log_path = dir.join("run.log");
-    let log = std::fs::File::create(&log_path).expect("create the run log");
-    let log_err = log.try_clone().expect("a second handle on the run log");
-
-    let mut child = Command::new(env!("CARGO_BIN_EXE_pricing-oracle"))
-        .args(args)
-        .current_dir(dir)
-        .env("CONDUCTOR_CONFIG", dir.join("conductor-config.yaml"))
-        .env("LAIR_PASSPHRASE_FILE", dir.join("lair-passphrase"))
-        .env("HOLOCHAIN_ADMIN_PORT", closed_port().to_string())
-        .env("HOLOCHAIN_APP_PORT", closed_port().to_string())
-        // Every assertion below reads the run's `info` lines, so a developer's
-        // own filter must not reach the child and empty them.
-        .env("RUST_LOG", "info")
-        // A run that reaches the price sources is the regression this test
-        // exists to catch, and it must catch it without calling a third party.
-        .env("ALL_PROXY", format!("http://127.0.0.1:{}", closed_port()))
-        .stdout(Stdio::from(log))
-        .stderr(Stdio::from(log_err))
-        .spawn()
-        .expect("run the oracle");
-
-    let deadline = Instant::now() + Duration::from_secs(60);
-    let status = loop {
-        match child.try_wait().expect("poll the oracle") {
-            Some(status) => break status,
-            None if Instant::now() >= deadline => {
-                child.kill().expect("kill the hung oracle");
-                panic!("the oracle did not exit within 60s");
-            }
-            None => std::thread::sleep(Duration::from_millis(50)),
-        }
-    };
-
-    let mut output = String::new();
-    std::fs::File::open(&log_path)
-        .expect("open the run log")
-        .read_to_string(&mut output)
-        .expect("read the run log");
-    (status, output)
-}
-
 #[test]
 fn a_stopped_lair_stops_a_submit_before_any_price_source() {
     let dir = node_with_a_stopped_lair(ONE_REFERENCE_AND_ONE_UNIT);
-    let (status, output) = run_oracle(dir.path(), &["--submit"]);
+    let (status, output) = run_oracle(dir.path(), &["--submit", "--config", "config.yaml"]);
 
     assert!(
         !status.success(),
@@ -151,7 +93,7 @@ fn a_stopped_lair_stops_a_submit_before_any_price_source() {
 #[test]
 fn a_run_without_submit_needs_no_conductor() {
     let dir = node_with_a_stopped_lair(NOTHING_TO_FETCH);
-    let (status, output) = run_oracle(dir.path(), &[]);
+    let (status, output) = run_oracle(dir.path(), &["--config", "config.yaml"]);
 
     assert!(
         status.success(),

@@ -22,7 +22,6 @@ pub struct ForexConfig {
     pub use_coinapi: bool,
     #[serde(default = "default_max_symbols_per_run")]
     pub max_symbols_per_run: usize,
-    /// Seconds to wait between batches when iterating (e.g. 65 for Twelve Data free tier per-minute limit).
     #[serde(default)]
     pub delay_between_batches_secs: u64,
 }
@@ -45,7 +44,6 @@ pub struct PriceReference {
 }
 
 impl PriceReference {
-    /// Build a UnitConfig-shaped value for use with SourceRegistry::fetch_all (same fields needed for API calls).
     pub fn to_unit_config_for_fetch(&self) -> UnitConfig {
         UnitConfig {
             unit_index: 0,
@@ -120,6 +118,20 @@ impl Config {
             }
         }
 
+        if let Some(first) = self.units.first() {
+            if self.units.iter().any(|u| u.chain != first.chain) {
+                let units: Vec<String> = self
+                    .units
+                    .iter()
+                    .map(|u| format!("unit {} '{}' on '{}'", u.unit_index, u.name, u.chain))
+                    .collect();
+                anyhow::bail!(
+                    "units name more than one chain ({}); a config is for one network",
+                    units.join(", ")
+                );
+            }
+        }
+
         let mut seen: HashMap<u32, &str> = HashMap::new();
         for unit in &self.units {
             if let Some(prev) = seen.insert(unit.unit_index, &unit.name) {
@@ -179,7 +191,6 @@ impl Config {
             .collect()
     }
 
-    /// Resolve proxy to either a unit index or a reference id.
     pub fn resolve_proxy_source(&self, unit_index: u32, proxy: &PriceProxy) -> Result<ProxySource> {
         if let Some(use_unit) = proxy.use_unit {
             if use_unit == unit_index {

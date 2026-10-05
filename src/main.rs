@@ -21,8 +21,8 @@ use tracing::info;
     about = "Fetch token prices, validate, build ConversionTable, and optionally submit to Unyt DNA"
 )]
 struct Args {
-    /// Path to config YAML file
-    #[arg(short, long, default_value = "config.yaml")]
+    /// The network's config: config.yaml for TestNet, config.mainnet.yaml for MainNet
+    #[arg(short, long)]
     config: PathBuf,
 
     /// Output format: "table" (default) or "json"
@@ -154,48 +154,7 @@ async fn main() -> Result<()> {
         None => cfg.proxy_units(),
     };
 
-    for proxy_unit in &proxy_units {
-        let proxy_cfg = proxy_unit.price_proxy.as_ref().unwrap();
-        let source = cfg
-            .resolve_proxy_source(proxy_unit.unit_index, proxy_cfg)
-            .context("resolving price_proxy")?;
-
-        let source_agg = match &source {
-            config::ProxySource::Unit(use_unit) => aggregated
-                .iter()
-                .find(|a| a.unit_index == *use_unit)
-                .cloned(),
-            config::ProxySource::Reference(id) => reference_prices.get(id).cloned(),
-        };
-
-        if let Some(source_agg) = source_agg {
-            let from = match &source {
-                config::ProxySource::Unit(u) => format!("unit {}", u),
-                config::ProxySource::Reference(id) => format!("reference '{}'", id),
-            };
-            info!(
-                "Proxying unit {} ({}) from {} — price={:.8}",
-                proxy_unit.unit_index, proxy_unit.name, from, source_agg.avg_price_usd
-            );
-            let mut proxied = source_agg;
-            proxied.unit_index = proxy_unit.unit_index;
-            proxied.name = proxy_unit.name.clone();
-            proxied.contract = proxy_unit.contract.clone();
-            aggregated.push(proxied);
-        } else {
-            let (kind, val) = match &source {
-                config::ProxySource::Unit(u) => ("unit", format!("{}", u)),
-                config::ProxySource::Reference(id) => ("reference", id.clone()),
-            };
-            tracing::warn!(
-                "unit {} ({}) proxy {} {} not found or not fetched",
-                proxy_unit.unit_index,
-                proxy_unit.name,
-                kind,
-                val,
-            );
-        }
-    }
+    add_proxied_prices(&cfg, &proxy_units, &reference_prices, &mut aggregated)?;
 
     aggregated.sort_by_key(|a| a.unit_index);
 
@@ -275,4 +234,132 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn add_proxied_prices(
+    cfg: &config::Config,
+    proxy_units: &[&config::UnitConfig],
+    reference_prices: &HashMap<String, types::AggregatedResult>,
+    aggregated: &mut Vec<types::AggregatedResult>,
+) -> Result<()> {
+    for proxy_unit in proxy_units {
+        let proxy_cfg = proxy_unit.price_proxy.as_ref().unwrap();
+        let source = cfg
+            .resolve_proxy_source(proxy_unit.unit_index, proxy_cfg)
+            .context("resolving price_proxy")?;
+
+        let source_agg = match &source {
+            config::ProxySource::Unit(use_unit) => aggregated
+                .iter()
+                .find(|a| a.unit_index == *use_unit)
+                .cloned(),
+            config::ProxySource::Reference(id) => reference_prices.get(id).cloned(),
+        };
+
+        if let Some(source_agg) = source_agg {
+            let from = match &source {
+                config::ProxySource::Unit(u) => format!("unit {}", u),
+                config::ProxySource::Reference(id) => format!("reference '{}'", id),
+            };
+            info!(
+                "Proxying unit {} ({}) from {} — price={:.8}",
+                proxy_unit.unit_index, proxy_unit.name, from, source_agg.avg_price_usd
+            );
+            let mut proxied = source_agg;
+            proxied.unit_index = proxy_unit.unit_index;
+            proxied.name = proxy_unit.name.clone();
+            proxied.contract = proxy_unit.contract.clone();
+            aggregated.push(proxied);
+        } else {
+            let (kind, val) = match &source {
+                config::ProxySource::Unit(u) => ("unit", format!("{}", u)),
+                config::ProxySource::Reference(id) => ("reference", id.clone()),
+            };
+            tracing::warn!(
+                "unit {} ({}) proxy {} {} not found or not fetched",
+                proxy_unit.unit_index,
+                proxy_unit.name,
+                kind,
+                val,
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{add_proxied_prices, aggregate, config, output, types};
+    use chrono::Utc;
+    use std::collections::{BTreeSet, HashMap};
+    use std::path::Path;
+
+    const MOCK_HOT: &str = "0xeaC8eEEE9f84F3E3F592e9D8604100eA1b788749";
+    const REAL_HOT: &str = "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2";
+
+    fn shipped(file: &str) -> config::Config {
+        config::Config::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join(file))
+            .unwrap_or_else(|e| panic!("{file} does not load: {e:#}"))
+    }
+
+    fn dry_run_table(cfg: &config::Config) -> rave_engine::types::ConversionTable {
+        let mut reference_prices = HashMap::new();
+        for reference in &cfg.price_references {
+            let quote = types::TokenData {
+                name: reference.name.clone(),
+                chain: reference.chain.clone(),
+                contract: reference.contract.clone(),
+                price_usd: 0.0004,
+                market_cap: None,
+                volume_24h: None,
+                liquidity: None,
+                price_change_24h: None,
+                source: "geckoterminal".to_string(),
+                timestamp: Utc::now(),
+            };
+            reference_prices.insert(reference.id.clone(), aggregate::aggregate(0, vec![quote]));
+        }
+        let mut aggregated = Vec::new();
+        add_proxied_prices(cfg, &cfg.proxy_units(), &reference_prices, &mut aggregated)
+            .expect("the proxies resolve");
+        output::build_conversion_table(&aggregated, &[], None).expect("the table builds")
+    }
+
+    #[test]
+    fn each_shipped_config_writes_its_networks_hot_as_the_contract_of_hf_and_hot() {
+        for (file, hot) in [("config.yaml", MOCK_HOT), ("config.mainnet.yaml", REAL_HOT)] {
+            let table = dry_run_table(&shipped(file));
+            let units: BTreeSet<&str> = table.data.keys().map(String::as_str).collect();
+            assert_eq!(
+                units,
+                BTreeSet::from(["0", "1"]),
+                "{file} prices other units"
+            );
+            for unit in ["0", "1"] {
+                assert_eq!(
+                    table.data[unit].contract.as_deref(),
+                    Some(hot),
+                    "{file} writes the wrong contract for unit {unit}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn both_shipped_configs_price_from_real_hot_with_one_forex_list() {
+        let testnet = shipped("config.yaml");
+        let mainnet = shipped("config.mainnet.yaml");
+        for (file, cfg) in [("config.yaml", &testnet), ("config.mainnet.yaml", &mainnet)] {
+            let [hot] = cfg.price_references.as_slice() else {
+                panic!("{file} has other price references than HOT");
+            };
+            assert_eq!((hot.id.as_str(), hot.chain.as_str()), ("HOT", "ethereum"));
+            assert!(
+                hot.contract.eq_ignore_ascii_case(REAL_HOT),
+                "{file} prices from {} rather than real HOT",
+                hot.contract
+            );
+        }
+        assert_eq!(testnet.forex.symbols, mainnet.forex.symbols);
+    }
 }
