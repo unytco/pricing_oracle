@@ -46,8 +46,8 @@ A config file has three sections:
 
 **price_proxy** must have exactly one of:
 
-- **use_unit** — Unit index in the same `units` list (same config as before).
-- **use_reference** — Id of an entry in `price_references`.
+- **use_unit**: the index of another entry in `units`.
+- **use_reference**: the id of an entry in `price_references`.
 
 If `forex.symbols` is empty or omitted, no forex API calls are made.
 
