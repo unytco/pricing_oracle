@@ -7,9 +7,9 @@ A Rust CLI that fetches token prices from multiple external sources, validates t
 ```bash
 # From the pricing_oracle/ directory
 cp .env.example .env                         # edit as needed
-cargo run -- -c config.yaml                  # fetch TestNet prices, print table
+cargo run -- -c config.yaml                  # price the TestNet units, print table
 cargo run -- -c config.yaml --dry-run        # preview the ConversionTable JSON (no Holochain connection)
-cargo run -- -c config.mainnet.yaml --submit # resolve GlobalDefinition from Holochain, fetch prices, submit
+cargo run -- -c config.yaml --submit         # resolve GlobalDefinition from Holochain, fetch prices, submit
 ```
 
 ## CLI flags
@@ -27,16 +27,16 @@ cargo run -- -c config.mainnet.yaml --submit # resolve GlobalDefinition from Hol
 
 ### Network configs
 
-The code is the same on both networks. Only the config differs:
+Each network has its own config file:
 
 | File | Network | Units 0 (`HF`) and 1 (`HOT`) |
 |---|---|---|
 | `config.yaml` | TestNet | `chain: sepolia`, MockHOT |
 | `config.mainnet.yaml` | MainNet | `chain: ethereum`, HOT |
 
-Both price units 0 and 1 from the `HOT` price reference, real HOT on `ethereum`, and carry the same forex list. Every unit in a file names the same `chain`: the oracle refuses a file whose units name more than one. Price references are exempt.
+Both price HF and HOT from the `HOT` price reference, real HOT on `ethereum`. Every unit in a file names the same `chain`: the oracle refuses a file whose units name more than one. Price references are exempt.
 
-A config file defines the units the oracle tracks (each with a `unit_index`, `name`, `chain`, and `contract`) and optionally **price references** — tokens that are fetched for pricing but have no `unit_index` and do not appear in the ConversionTable.
+A config file has three sections:
 
 - **units** — Entries that appear in the ConversionTable. Each has a unique `unit_index`. Units without `price_proxy` are fetched from price sources; units with `price_proxy` inherit price from another unit or from a price reference.
 - **price_references** (optional) — Tokens used only as price sources. They have an `id`, `name`, `chain`, and `contract` (no `unit_index`). They are fetched and aggregated like real units, but never get a row in the ConversionTable. Use them when a unit should proxy from a token that is not part of the network’s unit list.
@@ -48,8 +48,6 @@ A config file defines the units the oracle tracks (each with a `unit_index`, `na
 
 - **use_unit** — Unit index in the same `units` list (same config as before).
 - **use_reference** — Id of an entry in `price_references`.
-
-You can still proxy from another unit in the list: use `price_proxy: { use_unit: 0 }` instead of `use_reference`.
 
 If `forex.symbols` is empty or omitted, no forex API calls are made.
 
@@ -210,9 +208,10 @@ pricing_oracle/
 │   │   ├── mod.rs           # ForexSource trait and ForexSourceRegistry
 │   │   ├── twelve_data.rs   # Twelve Data USD/<SYMBOL> implementation
 │   │   └── coinapi.rs       # CoinAPI USD/<SYMBOL> implementation
-│   ├── aggregate.rs         # Average calculation and 3% deviation check
+│   ├── aggregate.rs         # Average calculation and deviation check
 │   ├── http.rs              # The rustls HTTP client every source shares
 │   ├── output.rs            # ConversionTable builder and print formatters
+│   ├── pricing.rs           # Prices the references, units and proxies of one run
 │   └── zome.rs              # Submission: the signed GlobalDefinition read, then create_conversion_table
 └── tests/
     ├── common/mod.rs                     # Runs the binary in a temp dir, cut off from third parties

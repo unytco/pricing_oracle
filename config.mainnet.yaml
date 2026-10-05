@@ -1,4 +1,3 @@
-# Tokens fetched for price only; not in ConversionTable, no unit_index
 price_references:
   - id: "HOT"
     name: "HOT"
@@ -20,7 +19,7 @@ units:
       use_reference: "HOT"
 
 forex:
-  # Free-tier: fetch in batches of 8, wait 65s between batches to stay within credits/minute
+  # Twelve Data's free tier allows 8 requests a minute.
   max_symbols_per_run: 8
   delay_between_batches_secs: 65
   use_twelve_data: true
@@ -34,44 +33,3 @@ forex:
     - "CAD"
     - "CNY"
     - "AUD"
-    # - "CHF"
-    # - "NZD"
-    # - "SEK"
-    # - "NOK"
-    # - "DKK"
-    # - "PLN"
-    # - "CZK"
-    # - "HUF"
-    # - "RON"
-    # - "TRY"
-    # - "RUB"
-    # - "UAH"
-    # - "ILS"
-    # - "AED"
-    # - "SAR"
-    # - "QAR"
-    # - "KWD"
-    # - "BHD"
-    # - "OMR"
-    # - "ZAR"
-    # - "EGP"
-    # - "NGN"
-    # - "KES"
-    # - "PKR"
-    # - "BDT"
-    # - "HKD"
-    # - "SGD"
-    # - "KRW"
-    # - "TWD"
-    # - "THB"
-    # - "MYR"
-    # - "IDR"
-    # - "PHP"
-    # - "VND"
-    # - "MXN"
-    # - "BRL"
-    # - "ARS"
-    # - "CLP"
-    # - "COP"
-    # - "PEN"
-    # - "UYU"
