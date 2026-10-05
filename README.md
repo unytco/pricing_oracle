@@ -94,7 +94,7 @@ For each configured forex symbol, providers are queried when available. If both 
 
 ## Aggregation and validation
 
-For each unit, the oracle computes the **average price** across all successful sources. If any single source deviates by more than **1%** from the average, the unit is marked **invalid** and excluded from the final `ConversionTable`.
+For each unit, the oracle computes the **average price** across all successful sources. If any single source deviates by more than **3%** from the average, the unit is marked **invalid** and excluded from the final `ConversionTable`.
 
 When only one source returns data, the cross-check is skipped and the result is accepted.
 
@@ -210,7 +210,7 @@ pricing_oracle/
 │   │   ├── mod.rs           # ForexSource trait and ForexSourceRegistry
 │   │   ├── twelve_data.rs   # Twelve Data USD/<SYMBOL> implementation
 │   │   └── coinapi.rs       # CoinAPI USD/<SYMBOL> implementation
-│   ├── aggregate.rs         # Average calculation and 1% deviation check
+│   ├── aggregate.rs         # Average calculation and 3% deviation check
 │   ├── http.rs              # The rustls HTTP client every source shares
 │   ├── output.rs            # ConversionTable builder and print formatters
 │   └── zome.rs              # Submission: the signed GlobalDefinition read, then create_conversion_table

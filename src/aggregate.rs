@@ -1,7 +1,7 @@
 use crate::types::{AggregatedResult, TokenData};
 use tracing::{info, warn};
 
-const DEVIATION_THRESHOLD: f64 = 0.03; // 3%
+const DEVIATION_THRESHOLD: f64 = 0.03;
 
 pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
     let name = data.first().map(|d| d.name.clone()).unwrap_or_default();
@@ -49,10 +49,11 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
         });
         if all_within {
             info!(
-                "unit {} ({}): all {} sources within 1% — valid (avg {:.8})",
+                "unit {} ({}): all {} sources within {:.0}% — valid (avg {:.8})",
                 unit_index,
                 name,
                 data.len(),
+                DEVIATION_THRESHOLD * 100.0,
                 avg_price
             );
         }
