@@ -143,7 +143,7 @@ Releases are cut by pushing a semver tag:
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-The workflow validates the tag, checks it against the crate version in `Cargo.toml`, builds with `--locked`, and publishes. The tag and `Cargo.toml` must agree — bump and commit the crate version before tagging.
+The workflow validates the tag, checks it against the crate version in `Cargo.toml`, runs the tests, builds with `--locked`, and publishes. The tag and `Cargo.toml` must agree: bump and commit the crate version before tagging.
 
 Assets have **fixed names**, so a provisioning script can hardcode the URL:
 
