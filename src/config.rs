@@ -218,6 +218,7 @@ units:
         let cfg: Config = serde_yaml::from_str("units: []\n").expect("the YAML parses");
         cfg.validate().expect("forex is optional");
         assert!(cfg.forex.symbols.is_empty());
+        assert!(cfg.forex.use_twelve_data && cfg.forex.use_coinapi);
         assert_eq!(cfg.forex.max_symbols_per_run, 8);
         assert_eq!(cfg.forex.delay_between_batches_secs, 0);
     }

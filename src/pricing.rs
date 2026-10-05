@@ -135,12 +135,15 @@ mod tests {
             .unwrap_or_else(|e| panic!("{file} does not load: {e:#}"))
     }
 
+    fn fixed_price() -> SourceRegistry {
+        SourceRegistry::from_sources(vec![Box::new(FixedPrice)])
+    }
+
     async fn dry_run_table(
         file: &str,
         only_unit: Option<u32>,
     ) -> rave_engine::types::ConversionTable {
-        let registry = SourceRegistry::from_sources(vec![Box::new(FixedPrice)]);
-        let priced = price_units(&shipped(file), only_unit, &registry)
+        let priced = price_units(&shipped(file), only_unit, &fixed_price())
             .await
             .expect("the units are priced");
         build_conversion_table(&priced, &[], None).expect("the table builds")
@@ -171,6 +174,31 @@ mod tests {
         let table = dry_run_table("config.mainnet.yaml", Some(1)).await;
         let units: Vec<&str> = table.data.keys().map(String::as_str).collect();
         assert_eq!(units, ["1"]);
+    }
+
+    #[tokio::test]
+    async fn a_proxy_of_a_proxy_resolves_and_units_come_back_in_index_order() {
+        let cfg: Config = serde_yaml::from_str(
+            r#"
+units:
+  - { unit_index: 2, name: "C", chain: "ethereum", contract: "0xc" }
+  - { unit_index: 1, name: "B", chain: "ethereum", contract: "0xb", price_proxy: { use_unit: 2 } }
+  - { unit_index: 0, name: "A", chain: "ethereum", contract: "0xa", price_proxy: { use_unit: 1 } }
+"#,
+        )
+        .expect("the YAML parses");
+
+        let priced = price_units(&cfg, None, &fixed_price())
+            .await
+            .expect("the units are priced");
+        let units: Vec<_> = priced
+            .iter()
+            .map(|p| (p.unit_index, p.contract.as_str(), p.valid))
+            .collect();
+        assert_eq!(
+            units,
+            [(0, "0xa", true), (1, "0xb", true), (2, "0xc", true)]
+        );
     }
 
     #[test]
