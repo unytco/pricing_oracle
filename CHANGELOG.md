@@ -29,3 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - upgrade holochain_client, holo_hash, zfuel and `ham` for Holochain 0.7
 - **Operators:** Holochain 0.7's keystore builds a vendored OpenSSL, so the machine running `cargo build --release` now also needs a C toolchain, `perl` and `make`. The deploy target is unaffected.
 - `ham` is pinned to an exact revision (`4e10636`) rather than its `main` branch, so a change to it reaches the oracle only in a commit that names the new revision.
+
+### Fixed
+
+- A config with no `forex` section loads, as the README says, instead of failing on `max_symbols_per_run`.

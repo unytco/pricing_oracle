@@ -12,26 +12,26 @@ pub struct Config {
     pub units: Vec<UnitConfig>,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct ForexConfig {
-    #[serde(default)]
     pub symbols: Vec<String>,
-    #[serde(default = "default_true")]
     pub use_twelve_data: bool,
-    #[serde(default = "default_true")]
     pub use_coinapi: bool,
-    #[serde(default = "default_max_symbols_per_run")]
     pub max_symbols_per_run: usize,
-    #[serde(default)]
     pub delay_between_batches_secs: u64,
 }
 
-fn default_true() -> bool {
-    true
-}
-
-fn default_max_symbols_per_run() -> usize {
-    8
+impl Default for ForexConfig {
+    fn default() -> Self {
+        Self {
+            symbols: Vec::new(),
+            use_twelve_data: true,
+            use_coinapi: true,
+            max_symbols_per_run: 8,
+            delay_between_batches_secs: 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -202,7 +202,6 @@ units:
   - { unit_index: 0, name: "A", chain: "sepolia", contract: "0xa" }
   - { unit_index: 1, name: "B", chain: "ethereum", contract: "0xb" }
   - { unit_index: 2, name: "C", chain: "sepolia", contract: "0xc" }
-forex: {}
 "#,
         )
         .expect("the YAML parses");
@@ -212,5 +211,14 @@ forex: {}
             refusal.contains("unit 1 'B' on 'ethereum'"),
             "the refusal does not name the odd unit: {refusal}"
         );
+    }
+
+    #[test]
+    fn a_config_without_forex_loads_with_the_documented_defaults() {
+        let cfg: Config = serde_yaml::from_str("units: []\n").expect("the YAML parses");
+        cfg.validate().expect("forex is optional");
+        assert!(cfg.forex.symbols.is_empty());
+        assert_eq!(cfg.forex.max_symbols_per_run, 8);
+        assert_eq!(cfg.forex.delay_between_batches_secs, 0);
     }
 }
