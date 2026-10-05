@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::run_oracle;
+use common::{run_oracle, NOTHING_TO_FETCH};
 
 const UNITS_ON_TWO_CHAINS: &str = r#"
 price_references:
@@ -24,15 +24,6 @@ units:
     contract: "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
     price_proxy:
       use_reference: "HOT"
-
-forex:
-  use_twelve_data: false
-  use_coinapi: false
-  symbols: []
-"#;
-
-const NOTHING_TO_FETCH: &str = r#"
-units: []
 
 forex:
   use_twelve_data: false
@@ -64,8 +55,8 @@ fn a_config_whose_units_name_two_chains_is_refused() {
     );
 }
 
-/// A `config.yaml` sits in the working directory, so a run that still fell
-/// back to it would succeed.
+/// A `config.yaml` sits in the working directory, so a run that fell back to
+/// a default would succeed.
 #[test]
 fn a_run_without_a_config_fails() {
     let dir = dir_with_config(NOTHING_TO_FETCH);

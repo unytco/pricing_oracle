@@ -3,7 +3,7 @@
 
 mod common;
 
-use common::run_oracle;
+use common::{run_oracle, NOTHING_TO_FETCH};
 
 /// Enough for a run that reaches the sources to log that it is fetching. Forex
 /// is off: it adds nothing here, and its batch delays are the slowest part of a
@@ -20,18 +20,6 @@ units:
     name: "HOT"
     chain: "sepolia"
     contract: "0xeaC8eEEE9f84F3E3F592e9D8604100eA1b788749"
-
-forex:
-  max_symbols_per_run: 8
-  delay_between_batches_secs: 0
-  use_twelve_data: false
-  use_coinapi: false
-  symbols: []
-"#;
-
-/// A run against it reaches its end without calling out.
-const NOTHING_TO_FETCH: &str = r#"
-units: []
 
 forex:
   max_symbols_per_run: 8

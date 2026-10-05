@@ -34,7 +34,6 @@ fn default_max_symbols_per_run() -> usize {
     8
 }
 
-/// Token fetched for price only; not in ConversionTable, no unit_index.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PriceReference {
     pub id: String,
@@ -177,20 +176,6 @@ impl Config {
         Ok(())
     }
 
-    pub fn real_units(&self) -> Vec<&UnitConfig> {
-        self.units
-            .iter()
-            .filter(|u| u.price_proxy.is_none())
-            .collect()
-    }
-
-    pub fn proxy_units(&self) -> Vec<&UnitConfig> {
-        self.units
-            .iter()
-            .filter(|u| u.price_proxy.is_some())
-            .collect()
-    }
-
     pub fn resolve_proxy_source(&self, unit_index: u32, proxy: &PriceProxy) -> Result<ProxySource> {
         if let Some(use_unit) = proxy.use_unit {
             if use_unit == unit_index {
@@ -202,5 +187,30 @@ impl Config {
             return Ok(ProxySource::Reference(id.clone()));
         }
         anyhow::bail!("price_proxy must have use_unit or use_reference");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn a_unit_on_another_chain_is_refused_wherever_it_sits() {
+        let cfg: Config = serde_yaml::from_str(
+            r#"
+units:
+  - { unit_index: 0, name: "A", chain: "sepolia", contract: "0xa" }
+  - { unit_index: 1, name: "B", chain: "ethereum", contract: "0xb" }
+  - { unit_index: 2, name: "C", chain: "sepolia", contract: "0xc" }
+forex: {}
+"#,
+        )
+        .expect("the YAML parses");
+
+        let refusal = format!("{:#}", cfg.validate().expect_err("mixed chains load"));
+        assert!(
+            refusal.contains("unit 1 'B' on 'ethereum'"),
+            "the refusal does not name the odd unit: {refusal}"
+        );
     }
 }

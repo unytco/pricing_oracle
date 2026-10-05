@@ -49,7 +49,7 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
         });
         if all_within {
             info!(
-                "unit {} ({}): all {} sources within {:.0}% — valid (avg {:.8})",
+                "unit {} ({}): all {} sources within {:.0}%, valid (avg {:.8})",
                 unit_index,
                 name,
                 data.len(),

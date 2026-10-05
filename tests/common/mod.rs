@@ -12,17 +12,27 @@ fn closed_port() -> u16 {
         .port()
 }
 
+/// A run against it reaches its end without calling out.
+pub const NOTHING_TO_FETCH: &str = r#"
+units: []
+
+forex:
+  use_twelve_data: false
+  use_coinapi: false
+  symbols: []
+"#;
+
 /// The run's own directory is its working directory, so a relative `--config`
 /// resolves there and the run finds no `.env` of the developer's to inherit.
 ///
-/// Bounded: a regression that hangs against an absent conductor fails this test
-/// rather than the suite.
+/// Bounded, so a hung run fails its own test instead of stalling the suite.
 pub fn run_oracle(dir: &Path, args: &[&str]) -> (ExitStatus, String) {
     let log_path = dir.join("run.log");
     let log = std::fs::File::create(&log_path).expect("create the run log");
     let log_err = log.try_clone().expect("a second handle on the run log");
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_pricing-oracle"))
+    let mut oracle = Command::new(env!("CARGO_BIN_EXE_pricing-oracle"));
+    oracle
         .args(args)
         .current_dir(dir)
         .env("CONDUCTOR_CONFIG", dir.join("conductor-config.yaml"))
@@ -32,13 +42,25 @@ pub fn run_oracle(dir: &Path, args: &[&str]) -> (ExitStatus, String) {
         // Callers assert on the run's `info` lines, so a developer's own
         // filter must not reach the child and empty them.
         .env("RUST_LOG", "info")
-        // A run that reaches a price source fails to connect instead of
-        // calling a third party.
-        .env("ALL_PROXY", format!("http://127.0.0.1:{}", closed_port()))
         .stdout(Stdio::from(log))
-        .stderr(Stdio::from(log_err))
-        .spawn()
-        .expect("run the oracle");
+        .stderr(Stdio::from(log_err));
+
+    // A run that reaches a price source fails to connect instead of calling a
+    // third party, whatever proxy the developer's shell sets.
+    let nowhere = format!("http://127.0.0.1:{}", closed_port());
+    for proxy in [
+        "ALL_PROXY",
+        "all_proxy",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "HTTP_PROXY",
+        "http_proxy",
+    ] {
+        oracle.env(proxy, &nowhere);
+    }
+    oracle.env_remove("NO_PROXY").env_remove("no_proxy");
+
+    let mut child = oracle.spawn().expect("run the oracle");
 
     let deadline = Instant::now() + Duration::from_secs(60);
     let status = loop {
