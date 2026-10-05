@@ -42,8 +42,6 @@ pub struct PriceReference {
     pub name: String,
     pub chain: String,
     pub contract: String,
-    #[serde(default)]
-    pub decimals: Option<u8>,
 }
 
 impl PriceReference {
@@ -54,7 +52,6 @@ impl PriceReference {
             name: self.name.clone(),
             chain: self.chain.clone(),
             contract: self.contract.clone(),
-            decimals: self.decimals,
             price_proxy: None,
         }
     }
@@ -66,7 +63,6 @@ pub struct UnitConfig {
     pub name: String,
     pub chain: String,
     pub contract: String,
-    pub decimals: Option<u8>,
     pub price_proxy: Option<PriceProxy>,
 }
 

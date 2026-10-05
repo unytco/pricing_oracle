@@ -79,8 +79,8 @@ pub fn build_conversion_table(
 
 pub fn print_table(results: &[AggregatedResult]) {
     println!(
-        "\n{:<8} {:<12} {:<16} {:<14} {:<14} {:<8} {}",
-        "Index", "Name", "Price (USD)", "Volume 24h", "Change 24h%", "Valid", "Sources"
+        "\n{:<8} {:<12} {:<16} {:<14} {:<14} {:<8} Sources",
+        "Index", "Name", "Price (USD)", "Volume 24h", "Change 24h%", "Valid"
     );
     println!("{}", "-".repeat(90));
     for r in results {
@@ -127,7 +127,6 @@ mod tests {
             price_change_24h: Some(-2.5),
             sources: vec!["coingecko".to_string(), "geckoterminal".to_string()],
             valid: true,
-            per_source: vec![],
         }
     }
 

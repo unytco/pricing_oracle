@@ -18,7 +18,6 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
             price_change_24h: None,
             sources,
             valid: false,
-            per_source: data,
         };
     }
 
@@ -72,12 +71,11 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
         price_change_24h,
         sources,
         valid,
-        per_source: data,
     }
 }
 
 fn aggregate_optional(data: &[TokenData], f: fn(&TokenData) -> Option<f64>) -> Option<f64> {
-    let vals: Vec<f64> = data.iter().filter_map(|d| f(d)).collect();
+    let vals: Vec<f64> = data.iter().filter_map(f).collect();
     if vals.is_empty() {
         None
     } else {
