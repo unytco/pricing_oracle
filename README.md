@@ -6,17 +6,18 @@ A Rust CLI that fetches token prices from multiple external sources, validates t
 
 ```bash
 # From the pricing_oracle/ directory
-cp .env.example .env                         # edit as needed
-cargo run -- -c config.yaml                  # price the TestNet units, print table
-cargo run -- -c config.yaml --dry-run        # preview the ConversionTable JSON (no Holochain connection)
-cargo run -- -c config.yaml --submit         # resolve GlobalDefinition from Holochain, fetch prices, submit
+cp .env.example .env                          # edit as needed
+cargo run                                     # price the TestNet units, print table
+cargo run -- --dry-run                        # preview the ConversionTable JSON (no Holochain connection)
+cargo run -- --submit                         # resolve GlobalDefinition from Holochain, fetch prices, submit
+cargo run -- -c config.mainnet.yaml --dry-run # the same for MainNet
 ```
 
 ## CLI flags
 
 | Flag | Description |
 |---|---|
-| `-c, --config <PATH>` | Required. The network's config file: `config.yaml` for TestNet, `config.mainnet.yaml` for MainNet |
+| `-c, --config <PATH>` | The network's config file: `config.yaml` for TestNet (the default), `config.mainnet.yaml` for MainNet |
 | `-o, --output <FORMAT>` | Output format: `table` (default) or `json` |
 | `-u, --unit <INDEX>` | Only process a single unit by its index |
 | `--dry-run` | Build the ConversionTable and print it as JSON without connecting to Holochain. Uses a zeroed placeholder for `global_definition`. Mutually exclusive with `--submit`. |
@@ -215,6 +216,6 @@ pricing_oracle/
 │   └── zome.rs              # Submission: the signed GlobalDefinition read, then create_conversion_table
 └── tests/
     ├── common/mod.rs                     # Runs the binary in a temp dir, cut off from third parties
-    ├── one_network_per_config.rs         # --config is required and names one chain
+    ├── one_network_per_config.rs         # A config names one chain; config.yaml is the default
     └── submit_probes_before_fetching.rs  # Where the signing check sits in a --submit run
 ```

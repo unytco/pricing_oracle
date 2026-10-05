@@ -55,20 +55,30 @@ fn a_config_whose_units_name_two_chains_is_refused() {
     );
 }
 
-/// A `config.yaml` sits in the working directory, so a run that fell back to
-/// a default would succeed.
 #[test]
-fn a_run_without_a_config_fails() {
+fn a_run_without_config_loads_config_yaml_from_its_working_directory() {
     let dir = dir_with_config(NOTHING_TO_FETCH);
     let (status, output) = run_oracle(dir.path(), &["--dry-run"]);
 
-    assert!(!status.success(), "a run with no --config ran: {output}");
+    assert!(status.success(), "the default config did not run: {output}");
     assert!(
-        output.contains("--config"),
-        "the failure does not name the missing flag: {output}"
+        output.contains("Loaded 0 units and 0 price reference(s) from config.yaml"),
+        "the run did not load config.yaml: {output}"
+    );
+}
+
+#[test]
+fn a_run_without_config_or_config_yaml_fails_naming_the_file() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let (status, output) = run_oracle(dir.path(), &["--dry-run"]);
+
+    assert!(!status.success(), "a run with no config file ran: {output}");
+    assert!(
+        output.contains("reading config.yaml"),
+        "the failure does not name the missing file: {output}"
     );
     assert!(
-        !output.contains("from config"),
-        "a run with no --config loaded one: {output}"
+        !output.contains("Fetching price"),
+        "a run with no config file reached a price source: {output}"
     );
 }

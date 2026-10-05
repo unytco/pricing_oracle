@@ -22,7 +22,7 @@ use tracing::info;
 )]
 struct Args {
     /// The network's config: config.yaml for TestNet, config.mainnet.yaml for MainNet
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "config.yaml")]
     config: PathBuf,
 
     /// Output format: "table" (default) or "json"
