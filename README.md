@@ -141,7 +141,7 @@ The agent running the CLI must be the `pricing_oracle` agent defined in the acti
 Releases are cut by pushing a semver tag:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
 The workflow validates the tag, checks it against the crate version in `Cargo.toml`, runs the tests, builds with `--locked`, and publishes. The tag and `Cargo.toml` must agree: bump and commit the crate version before tagging.
@@ -158,7 +158,7 @@ Assets have **fixed names**, so a provisioning script can hardcode the URL:
 | `config.mainnet.yaml.sha256` | Digest of the MainNet config |
 
 ```text
-https://github.com/unytco/pricing_oracle/releases/download/v0.1.0/pricing-oracle
+https://github.com/unytco/pricing_oracle/releases/download/v0.2.0/pricing-oracle
 https://github.com/unytco/pricing_oracle/releases/latest/download/pricing-oracle
 ```
 
@@ -167,7 +167,7 @@ https://github.com/unytco/pricing_oracle/releases/latest/download/pricing-oracle
 ### Installing from cloud-init
 
 ```bash
-VERSION=v0.1.0
+VERSION=v0.2.0
 CONFIG=config.yaml   # config.mainnet.yaml on MainNet
 INSTALL_DIR=/opt/pricing-oracle
 
