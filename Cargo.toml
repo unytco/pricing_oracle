@@ -1,6 +1,6 @@
 [package]
 name = "pricing-oracle"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "CLI pricing oracle for fetching token prices and building ConversionTable for Unyt DNA"
 license = "CAL-1.0"
