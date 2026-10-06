@@ -40,7 +40,7 @@ fn dir_with_config(config: &str) -> tempfile::TempDir {
 #[test]
 fn a_config_whose_units_name_two_chains_is_refused() {
     let dir = dir_with_config(UNITS_ON_TWO_CHAINS);
-    let (status, output) = run_oracle(dir.path(), &["--dry-run", "--config", "config.yaml"]);
+    let (status, output) = run_oracle(dir.path(), &["--dry-run"]);
 
     assert!(!status.success(), "a mixed-chain config ran: {output}");
     assert!(

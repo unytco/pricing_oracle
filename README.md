@@ -168,7 +168,7 @@ https://github.com/unytco/pricing_oracle/releases/latest/download/pricing-oracle
 
 ```bash
 VERSION=v0.1.0
-CONFIG=config.mainnet.yaml   # config.yaml on TestNet
+CONFIG=config.yaml   # config.mainnet.yaml on MainNet
 INSTALL_DIR=/opt/pricing-oracle
 
 mkdir -p "$INSTALL_DIR"

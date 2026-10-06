@@ -52,7 +52,7 @@ fn node_with_a_stopped_lair(config: &str) -> tempfile::TempDir {
 #[test]
 fn a_stopped_lair_stops_a_submit_before_any_price_source() {
     let dir = node_with_a_stopped_lair(ONE_REFERENCE_AND_ONE_UNIT);
-    let (status, output) = run_oracle(dir.path(), &["--submit", "--config", "config.yaml"]);
+    let (status, output) = run_oracle(dir.path(), &["--submit"]);
 
     assert!(
         !status.success(),
@@ -81,7 +81,7 @@ fn a_stopped_lair_stops_a_submit_before_any_price_source() {
 #[test]
 fn a_run_without_submit_needs_no_conductor() {
     let dir = node_with_a_stopped_lair(NOTHING_TO_FETCH);
-    let (status, output) = run_oracle(dir.path(), &["--config", "config.yaml"]);
+    let (status, output) = run_oracle(dir.path(), &[]);
 
     assert!(
         status.success(),
