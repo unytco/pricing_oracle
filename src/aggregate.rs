@@ -1,7 +1,7 @@
 use crate::types::{AggregatedResult, TokenData};
 use tracing::{info, warn};
 
-const DEVIATION_THRESHOLD: f64 = 0.03; // 3%
+const DEVIATION_THRESHOLD: f64 = 0.03;
 
 pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
     let name = data.first().map(|d| d.name.clone()).unwrap_or_default();
@@ -18,7 +18,6 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
             price_change_24h: None,
             sources,
             valid: false,
-            per_source: data,
         };
     }
 
@@ -50,10 +49,11 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
         });
         if all_within {
             info!(
-                "unit {} ({}): all {} sources within 1% — valid (avg {:.8})",
+                "unit {} ({}): all {} sources within {:.0}%, valid (avg {:.8})",
                 unit_index,
                 name,
                 data.len(),
+                DEVIATION_THRESHOLD * 100.0,
                 avg_price
             );
         }
@@ -72,12 +72,11 @@ pub fn aggregate(unit_index: u32, data: Vec<TokenData>) -> AggregatedResult {
         price_change_24h,
         sources,
         valid,
-        per_source: data,
     }
 }
 
 fn aggregate_optional(data: &[TokenData], f: fn(&TokenData) -> Option<f64>) -> Option<f64> {
-    let vals: Vec<f64> = data.iter().filter_map(|d| f(d)).collect();
+    let vals: Vec<f64> = data.iter().filter_map(f).collect();
     if vals.is_empty() {
         None
     } else {

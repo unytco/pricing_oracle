@@ -12,49 +12,43 @@ pub struct Config {
     pub units: Vec<UnitConfig>,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
 pub struct ForexConfig {
-    #[serde(default)]
     pub symbols: Vec<String>,
-    #[serde(default = "default_true")]
     pub use_twelve_data: bool,
-    #[serde(default = "default_true")]
     pub use_coinapi: bool,
-    #[serde(default = "default_max_symbols_per_run")]
     pub max_symbols_per_run: usize,
-    /// Seconds to wait between batches when iterating (e.g. 65 for Twelve Data free tier per-minute limit).
-    #[serde(default)]
     pub delay_between_batches_secs: u64,
 }
 
-fn default_true() -> bool {
-    true
+impl Default for ForexConfig {
+    fn default() -> Self {
+        Self {
+            symbols: Vec::new(),
+            use_twelve_data: true,
+            use_coinapi: true,
+            max_symbols_per_run: 8,
+            delay_between_batches_secs: 0,
+        }
+    }
 }
 
-fn default_max_symbols_per_run() -> usize {
-    8
-}
-
-/// Token fetched for price only; not in ConversionTable, no unit_index.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PriceReference {
     pub id: String,
     pub name: String,
     pub chain: String,
     pub contract: String,
-    #[serde(default)]
-    pub decimals: Option<u8>,
 }
 
 impl PriceReference {
-    /// Build a UnitConfig-shaped value for use with SourceRegistry::fetch_all (same fields needed for API calls).
     pub fn to_unit_config_for_fetch(&self) -> UnitConfig {
         UnitConfig {
             unit_index: 0,
             name: self.name.clone(),
             chain: self.chain.clone(),
             contract: self.contract.clone(),
-            decimals: self.decimals,
             price_proxy: None,
         }
     }
@@ -66,7 +60,6 @@ pub struct UnitConfig {
     pub name: String,
     pub chain: String,
     pub contract: String,
-    pub decimals: Option<u8>,
     pub price_proxy: Option<PriceProxy>,
 }
 
@@ -124,6 +117,20 @@ impl Config {
             }
         }
 
+        if let Some(first) = self.units.first() {
+            if self.units.iter().any(|u| u.chain != first.chain) {
+                let units: Vec<String> = self
+                    .units
+                    .iter()
+                    .map(|u| format!("unit {} '{}' on '{}'", u.unit_index, u.name, u.chain))
+                    .collect();
+                anyhow::bail!(
+                    "units name more than one chain ({}); a config is for one network",
+                    units.join(", ")
+                );
+            }
+        }
+
         let mut seen: HashMap<u32, &str> = HashMap::new();
         for unit in &self.units {
             if let Some(prev) = seen.insert(unit.unit_index, &unit.name) {
@@ -169,21 +176,6 @@ impl Config {
         Ok(())
     }
 
-    pub fn real_units(&self) -> Vec<&UnitConfig> {
-        self.units
-            .iter()
-            .filter(|u| u.price_proxy.is_none())
-            .collect()
-    }
-
-    pub fn proxy_units(&self) -> Vec<&UnitConfig> {
-        self.units
-            .iter()
-            .filter(|u| u.price_proxy.is_some())
-            .collect()
-    }
-
-    /// Resolve proxy to either a unit index or a reference id.
     pub fn resolve_proxy_source(&self, unit_index: u32, proxy: &PriceProxy) -> Result<ProxySource> {
         if let Some(use_unit) = proxy.use_unit {
             if use_unit == unit_index {
@@ -195,5 +187,39 @@ impl Config {
             return Ok(ProxySource::Reference(id.clone()));
         }
         anyhow::bail!("price_proxy must have use_unit or use_reference");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn a_unit_on_another_chain_is_refused_wherever_it_sits() {
+        let cfg: Config = serde_yaml::from_str(
+            r#"
+units:
+  - { unit_index: 0, name: "A", chain: "sepolia", contract: "0xa" }
+  - { unit_index: 1, name: "B", chain: "ethereum", contract: "0xb" }
+  - { unit_index: 2, name: "C", chain: "sepolia", contract: "0xc" }
+"#,
+        )
+        .expect("the YAML parses");
+
+        let refusal = format!("{:#}", cfg.validate().expect_err("mixed chains load"));
+        assert!(
+            refusal.contains("unit 1 'B' on 'ethereum'"),
+            "the refusal does not name the odd unit: {refusal}"
+        );
+    }
+
+    #[test]
+    fn a_config_without_forex_loads_with_the_documented_defaults() {
+        let cfg: Config = serde_yaml::from_str("units: []\n").expect("the YAML parses");
+        cfg.validate().expect("forex is optional");
+        assert!(cfg.forex.symbols.is_empty());
+        assert!(cfg.forex.use_twelve_data && cfg.forex.use_coinapi);
+        assert_eq!(cfg.forex.max_symbols_per_run, 8);
+        assert_eq!(cfg.forex.delay_between_batches_secs, 0);
     }
 }

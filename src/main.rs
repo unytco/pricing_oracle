@@ -4,13 +4,13 @@ mod forex;
 mod forex_aggregate;
 mod http;
 mod output;
+mod pricing;
 mod sources;
 mod types;
 mod zome;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -21,7 +21,7 @@ use tracing::info;
     about = "Fetch token prices, validate, build ConversionTable, and optionally submit to Unyt DNA"
 )]
 struct Args {
-    /// Path to config YAML file
+    /// The network's config: config.yaml for TestNet, config.mainnet.yaml for MainNet
     #[arg(short, long, default_value = "config.yaml")]
     config: PathBuf,
 
@@ -58,9 +58,11 @@ async fn main() -> Result<()> {
         .with_context(|| format!("loading config from {}", args.config.display()))?;
 
     info!(
-        "Loaded {} units and {} price reference(s) from config",
+        "Loaded {} units and {} price reference(s) from {}, units on chain '{}'",
         cfg.units.len(),
-        cfg.price_references.len()
+        cfg.price_references.len(),
+        args.config.display(),
+        cfg.units.first().map_or("none", |u| u.chain.as_str())
     );
 
     let submission = if args.submit {
@@ -86,118 +88,7 @@ async fn main() -> Result<()> {
     let registry = sources::SourceRegistry::new(client.clone(), coingecko_key, coinmarketcap_key);
     info!("Registered {} price source(s)", registry.source_count());
 
-    let mut reference_prices: HashMap<String, types::AggregatedResult> = HashMap::new();
-    for ref_entry in &cfg.price_references {
-        info!(
-            "Fetching price reference '{}' ({})",
-            ref_entry.id, ref_entry.name
-        );
-        let ref_unit = ref_entry.to_unit_config_for_fetch();
-        let fetch_results = registry.fetch_all(&ref_unit).await;
-        let mut successful: Vec<types::TokenData> = Vec::new();
-        for (source_name, result) in fetch_results {
-            match result {
-                Ok(data) => {
-                    info!("  [{}] price={:.8} USD", source_name, data.price_usd);
-                    successful.push(data);
-                }
-                Err(e) => {
-                    tracing::warn!("  [{}] failed: {:#}", source_name, e);
-                }
-            }
-        }
-        let agg = aggregate::aggregate(0, successful);
-        reference_prices.insert(ref_entry.id.clone(), agg);
-    }
-
-    let real_units: Vec<_> = match args.unit {
-        Some(idx) => cfg
-            .real_units()
-            .into_iter()
-            .filter(|u| u.unit_index == idx)
-            .collect(),
-        None => cfg.real_units(),
-    };
-
-    let mut aggregated: Vec<types::AggregatedResult> = Vec::new();
-
-    for unit in &real_units {
-        info!(
-            "Fetching prices for unit {} ({})",
-            unit.unit_index, unit.name
-        );
-        let fetch_results = registry.fetch_all(unit).await;
-
-        let mut successful: Vec<types::TokenData> = Vec::new();
-        for (source_name, result) in fetch_results {
-            match result {
-                Ok(data) => {
-                    info!("  [{}] price={:.8} USD", source_name, data.price_usd);
-                    successful.push(data);
-                }
-                Err(e) => {
-                    tracing::warn!("  [{}] failed: {:#}", source_name, e);
-                }
-            }
-        }
-
-        let agg = aggregate::aggregate(unit.unit_index, successful);
-        aggregated.push(agg);
-    }
-
-    let proxy_units: Vec<_> = match args.unit {
-        Some(idx) => cfg
-            .proxy_units()
-            .into_iter()
-            .filter(|u| u.unit_index == idx)
-            .collect(),
-        None => cfg.proxy_units(),
-    };
-
-    for proxy_unit in &proxy_units {
-        let proxy_cfg = proxy_unit.price_proxy.as_ref().unwrap();
-        let source = cfg
-            .resolve_proxy_source(proxy_unit.unit_index, proxy_cfg)
-            .context("resolving price_proxy")?;
-
-        let source_agg = match &source {
-            config::ProxySource::Unit(use_unit) => aggregated
-                .iter()
-                .find(|a| a.unit_index == *use_unit)
-                .cloned(),
-            config::ProxySource::Reference(id) => reference_prices.get(id).cloned(),
-        };
-
-        if let Some(source_agg) = source_agg {
-            let from = match &source {
-                config::ProxySource::Unit(u) => format!("unit {}", u),
-                config::ProxySource::Reference(id) => format!("reference '{}'", id),
-            };
-            info!(
-                "Proxying unit {} ({}) from {} — price={:.8}",
-                proxy_unit.unit_index, proxy_unit.name, from, source_agg.avg_price_usd
-            );
-            let mut proxied = source_agg;
-            proxied.unit_index = proxy_unit.unit_index;
-            proxied.name = proxy_unit.name.clone();
-            proxied.contract = proxy_unit.contract.clone();
-            aggregated.push(proxied);
-        } else {
-            let (kind, val) = match &source {
-                config::ProxySource::Unit(u) => ("unit", format!("{}", u)),
-                config::ProxySource::Reference(id) => ("reference", id.clone()),
-            };
-            tracing::warn!(
-                "unit {} ({}) proxy {} {} not found or not fetched",
-                proxy_unit.unit_index,
-                proxy_unit.name,
-                kind,
-                val,
-            );
-        }
-    }
-
-    aggregated.sort_by_key(|a| a.unit_index);
+    let aggregated = pricing::price_units(&cfg, args.unit, &registry).await?;
 
     let batch_size = cfg.forex.max_symbols_per_run;
     let delay_secs = cfg.forex.delay_between_batches_secs;

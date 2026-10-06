@@ -25,5 +25,4 @@ pub struct AggregatedResult {
     pub price_change_24h: Option<f64>,
     pub sources: Vec<String>,
     pub valid: bool,
-    pub per_source: Vec<TokenData>,
 }

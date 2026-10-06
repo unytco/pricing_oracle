@@ -7,14 +7,14 @@ price_references:
 units:
   - unit_index: 0
     name: "HF"
-    chain: "sepolia"
-    contract: "0xeaC8eEEE9f84F3E3F592e9D8604100eA1b788749"
+    chain: "ethereum"
+    contract: "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
     price_proxy:
       use_reference: "HOT"
   - unit_index: 1
     name: "HOT"
-    chain: "sepolia"
-    contract: "0xeaC8eEEE9f84F3E3F592e9D8604100eA1b788749"
+    chain: "ethereum"
+    contract: "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2"
     price_proxy:
       use_reference: "HOT"
 

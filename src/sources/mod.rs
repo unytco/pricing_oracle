@@ -41,6 +41,11 @@ impl SourceRegistry {
         Self { sources }
     }
 
+    #[cfg(test)]
+    pub fn from_sources(sources: Vec<Box<dyn PriceSource>>) -> Self {
+        Self { sources }
+    }
+
     pub async fn fetch_all(&self, unit: &UnitConfig) -> Vec<(String, Result<TokenData>)> {
         let mut results = Vec::new();
         for source in &self.sources {

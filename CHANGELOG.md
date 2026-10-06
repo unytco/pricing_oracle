@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tag-driven release workflow: pushing a semver tag builds a stripped `pricing-oracle` and publishes it alongside `config.yaml` (each with a `.sha256`) as fixed-name GitHub release assets.
 - `--version` on the CLI, derived from the crate version. The release asset has a fixed filename, so this is how a deployed binary identifies itself.
+- Each release publishes `config.mainnet.yaml`, the MainNet config, with its `.sha256`.
 
 ### Changed
 
+- **Operators:** the oracle refuses a config whose units name more than one chain. A MainNet run passes `--config config.mainnet.yaml`.
 - Uses `rave_engine` 0.13.0's `ConversionTable` and `GlobalDefinitionExt`.
 - The lair requirement is `ham`'s decision, supplied with the oracle's two paths, rather than restated here. A refusal names the fault before the reason the node could not offer lair.
 - Sign zome calls via lair (`CONDUCTOR_CONFIG` + `LAIR_PASSPHRASE_FILE`, defaulting to the fleet paths), committing no capability grant per run. A node that cannot offer lair stops the run with the reason instead of writing to the oracle's chain. Under `--submit` that first signed call is made before any price source, so a lair that is present but stopped costs no API quota to discover.
@@ -27,3 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - upgrade holochain_client, holo_hash, zfuel and `ham` for Holochain 0.7
 - **Operators:** Holochain 0.7's keystore builds a vendored OpenSSL, so the machine running `cargo build --release` now also needs a C toolchain, `perl` and `make`. The deploy target is unaffected.
 - `ham` is pinned to an exact revision (`4e10636`) rather than its `main` branch, so a change to it reaches the oracle only in a commit that names the new revision.
+
+### Fixed
+
+- A config with no `forex` section loads.
