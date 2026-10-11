@@ -44,7 +44,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 
 # Holochain bridge
-ham = { git = "https://github.com/unytco/ham.git", rev = "4e1063602045e1b2a8aceacd5d75eedc3e3ecba3" }
+ham = { git = "https://github.com/unytco/ham.git", rev = "caee6eeed9a0e2a96e163dd21db57869426decca" }
 holochain_client = "0.9.0"
 holo_hash = { version = "0.7.0", features = ["encoding"] }
 rave_engine = "=0.13.0"
