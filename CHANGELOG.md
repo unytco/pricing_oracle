@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-15
+
 ### Changed
 
+- TestNet's conversion table names Base Sepolia's MockHOT as the contract of HF and HOT.
 - `ham` moves from revision `4e10636` to `caee6ee` (ham 0.2.0), which treats a lair restart as a lost connection.
 
 ## [0.2.0] - 2026-10-06

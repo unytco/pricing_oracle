@@ -103,7 +103,7 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::Path;
 
-    const MOCK_HOT: &str = "0xeaC8eEEE9f84F3E3F592e9D8604100eA1b788749";
+    const MOCK_HOT: &str = "0x916A830d1603252152fE17258bb10A393F173a72";
     const REAL_HOT: &str = "0x6c6EE5e31d828De241282B9606C8e98Ea48526E2";
 
     struct FixedPrice;
@@ -206,7 +206,7 @@ units:
         let testnet = shipped("config.yaml");
         let mainnet = shipped("config.mainnet.yaml");
         for (file, cfg, chain) in [
-            ("config.yaml", &testnet, "sepolia"),
+            ("config.yaml", &testnet, "base-sepolia"),
             ("config.mainnet.yaml", &mainnet, "ethereum"),
         ] {
             let units: Vec<_> = cfg
