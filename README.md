@@ -32,7 +32,7 @@ Each network has its own config file:
 
 | File | Network | Units 0 (`HF`) and 1 (`HOT`) |
 |---|---|---|
-| `config.yaml` | TestNet | `chain: sepolia`, MockHOT |
+| `config.yaml` | TestNet | `chain: base-sepolia`, MockHOT |
 | `config.mainnet.yaml` | MainNet | `chain: ethereum`, HOT |
 
 Both price HF and HOT from the `HOT` price reference, real HOT on `ethereum`. Every unit in a file names the same `chain`: the oracle refuses a file whose units name more than one. Price references are exempt.
