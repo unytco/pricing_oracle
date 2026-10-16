@@ -1,6 +1,6 @@
 [package]
 name = "pricing-oracle"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "CLI pricing oracle for fetching token prices and building ConversionTable for Unyt DNA"
 license = "CAL-1.0"
@@ -44,10 +44,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 
 # Holochain bridge
-ham = { git = "https://github.com/unytco/ham.git", rev = "caee6eeed9a0e2a96e163dd21db57869426decca" }
-holochain_client = "0.9.0"
-holo_hash = { version = "0.7.0", features = ["encoding"] }
-rave_engine = "=0.13.0"
+ham = { git = "https://github.com/unytco/ham.git", rev = "fbb4b6eb8a79a507e9453b709ed00f15c5618fb4" }
+holochain_client = "0.9.1"
+holo_hash = { version = "0.7.1", features = ["encoding"] }
+rave_engine = "=0.14.0"
 zfuel = "0.9.0"
 
 [profile.release]
